@@ -34,8 +34,11 @@ local M = {}
 ---@field readonly_add string|false
 ---@field readonly_delete string|false
 ---@field readonly_edit string|false
+---@field readonly_add_file string|false
+---@field add_file_comment string|false
 ---@field popup_submit string|false
 ---@field popup_cancel string|false
+---@field show_help string|false
 ---@field popup_cycle_type string|false
 
 ---@class ReviewExportConfig
@@ -59,6 +62,7 @@ M.defaults = {
     add_suggestion = "<leader>cs",
     add_issue = "<leader>ci",
     add_praise = "<leader>cp",
+    add_file_comment = "<leader>cf",
     delete_comment = "<leader>cd",
     edit_comment = "<leader>ce",
     -- Navigation
@@ -78,6 +82,9 @@ M.defaults = {
     readonly_add = "i",
     readonly_delete = "d",
     readonly_edit = "e",
+    readonly_add_file = "F",
+    -- Help
+    show_help = "?",
     -- Popup keymaps
     popup_submit = "<C-s>",
     popup_cancel = "q",
