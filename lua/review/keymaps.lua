@@ -290,7 +290,7 @@ local augroup = nil
 function M.setup_keymaps(tabpage)
   local ok, lifecycle = pcall(require, "codediff.ui.lifecycle")
   if not ok then
-    vim.notify("codediff.ui.lifecycle not available", vim.log.levels.WARN, { title = "Review" })
+    vim.notify("codediff.ui.lifecycle not available", vim.log.levels.WARN, { title = "review.nvim" })
     return
   end
 

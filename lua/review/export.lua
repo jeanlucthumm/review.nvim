@@ -3,7 +3,7 @@ local M = {}
 local store = require("review.store")
 
 local function notify(msg, level)
-  vim.notify(msg, level, { title = "Review" })
+  vim.notify(msg, level, { title = "review.nvim" })
 end
 
 ---@return string

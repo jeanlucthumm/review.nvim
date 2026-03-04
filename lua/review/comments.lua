@@ -6,7 +6,7 @@ local popup = require("review.popup")
 local marks = require("review.marks")
 
 local function notify(msg, level)
-  vim.notify(msg, level, { title = "Review" })
+  vim.notify(msg, level, { title = "review.nvim" })
 end
 
 ---@param initial_type? "note"|"suggestion"|"issue"|"praise"

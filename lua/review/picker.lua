@@ -220,7 +220,7 @@ end
 function M.open(callback)
   local git_root = get_git_root()
   if not git_root then
-    vim.notify("Not in a git repository", vim.log.levels.ERROR, { title = "Review" })
+    vim.notify("Not in a git repository", vim.log.levels.ERROR, { title = "review.nvim" })
     return
   end
 
@@ -228,7 +228,7 @@ function M.open(callback)
   selected = {}
 
   if #commits == 0 then
-    vim.notify("No commits found", vim.log.levels.WARN, { title = "Review" })
+    vim.notify("No commits found", vim.log.levels.WARN, { title = "review.nvim" })
     return
   end
 

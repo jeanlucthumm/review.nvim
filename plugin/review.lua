@@ -32,7 +32,7 @@ vim.api.nvim_create_user_command("Review", function(opts)
     local subargs = { unpack(args, 2) }
     subcmd.fn(subargs)
   else
-    vim.notify("Unknown subcommand: " .. cmd .. "\nAvailable: " .. table.concat(subcommand_names, ", "), vim.log.levels.ERROR, { title = "Review" })
+    vim.notify("Unknown subcommand: " .. cmd .. "\nAvailable: " .. table.concat(subcommand_names, ", "), vim.log.levels.ERROR, { title = "review.nvim" })
   end
 end, {
   nargs = "*",

@@ -65,7 +65,7 @@ end
 local function open_codediff_with_revisions(rev1, rev2)
   local ok, _ = pcall(require, "codediff")
   if not ok then
-    vim.notify("codediff.nvim is required", vim.log.levels.ERROR, { title = "Review" })
+    vim.notify("codediff.nvim is required", vim.log.levels.ERROR, { title = "review.nvim" })
     return
   end
 
@@ -122,7 +122,7 @@ function M.close()
     local markdown = export.generate_markdown()
     vim.fn.setreg("+", markdown)
     vim.fn.setreg("*", markdown)
-    vim.notify(string.format("Exported %d comment(s) to clipboard", count), vim.log.levels.INFO, { title = "Review" })
+    vim.notify(string.format("Exported %d comment(s) to clipboard", count), vim.log.levels.INFO, { title = "review.nvim" })
   end
 
   -- Close the tab
@@ -141,7 +141,7 @@ end
 function M.clear()
   store.clear()
   require("review.marks").clear_all()
-  vim.notify("All comments cleared", vim.log.levels.INFO, { title = "Review" })
+  vim.notify("All comments cleared", vim.log.levels.INFO, { title = "review.nvim" })
 end
 
 function M.count()
@@ -195,7 +195,7 @@ function M.toggle_readonly()
   keymaps.setup_keymaps(tabpage)
 
   local mode = cfg.codediff.readonly and "readonly" or "edit"
-  vim.notify("Switched to " .. mode .. " mode", vim.log.levels.INFO, { title = "Review" })
+  vim.notify("Switched to " .. mode .. " mode", vim.log.levels.INFO, { title = "review.nvim" })
 end
 
 return M
