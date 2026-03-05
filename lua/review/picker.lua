@@ -247,7 +247,7 @@ function M.open(callback)
     },
     win_options = {
       cursorline = true,
-      cursorlineopt = "both",
+      cursorlineopt = "line",
     },
   })
 
