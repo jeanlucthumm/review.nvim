@@ -17,7 +17,6 @@ local range_start = nil
 local range_end = nil
 ---@type any
 local popup = nil
-local saved_guicursor = nil
 
 local function get_git_root()
   local result = vim.fn.systemlist("git rev-parse --show-toplevel")
@@ -165,10 +164,6 @@ local function select_none()
 end
 
 local function close_picker()
-  if saved_guicursor then
-    vim.o.guicursor = saved_guicursor
-    saved_guicursor = nil
-  end
   if popup then
     popup:unmount()
     popup = nil
@@ -254,11 +249,16 @@ function M.open(callback)
   popup:mount()
   render_lines()
 
-  -- Focus the popup window and hide block cursor
+  -- Focus the popup window and lock cursor to column 2 (middle of [ ])
   vim.api.nvim_set_current_win(popup.winid)
-  saved_guicursor = vim.o.guicursor
-  vim.api.nvim_set_hl(0, "CursorHidden", { blend = 100, nocombine = true })
-  vim.o.guicursor = "a:CursorHidden"
+  vim.api.nvim_win_set_cursor(popup.winid, { 1, 1 })
+  vim.api.nvim_create_autocmd("CursorMoved", {
+    buffer = popup.bufnr,
+    callback = function()
+      local row = vim.api.nvim_win_get_cursor(0)[1]
+      vim.api.nvim_win_set_cursor(0, { row, 1 })
+    end,
+  })
 
   -- Keymaps using nui's map method
   local map_opts = { noremap = true, nowait = true }
