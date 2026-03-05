@@ -121,6 +121,7 @@ local function show_help()
   entry("toggle_readonly", "Toggle readonly/edit", action_entries)
   entry("close", "Export & close review", action_entries)
   entry("show_help", "This help", action_entries)
+  table.insert(action_entries, { key = "t", desc = "Toggle layout" })
   table.insert(action_entries, { key = "g?", desc = "Codediff help" })
 
   local all_entries = {}

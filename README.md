@@ -62,7 +62,7 @@ Using lazy.nvim:
 
 Open a review with `:Review` to see your staged and unstaged changes in a side-by-side diff, or `:Review commits` if you want to pick specific commits to review. The diff opens in a new tab with a file panel on the left.
 
-Navigate between files with `<Tab>` and `<S-Tab>`. Toggle the file panel with `f`. Switch between the old (left) and new (right) panes with `<C-w>h` and `<C-w>l`. When you spot something worth commenting on, press `i` on the line and pick a comment type from the menu (note, suggestion, issue, praise). The comment renders inline as a box below the line with a sign icon in the gutter.
+Navigate between files with `<Tab>` and `<S-Tab>`. Toggle the file panel with `f`. Press `t` to toggle between side-by-side and inline layout. Switch between the old (left) and new (right) panes with `<C-w>h` and `<C-w>l`. When you spot something worth commenting on, press `i` on the line and pick a comment type from the menu (note, suggestion, issue, praise). The comment renders inline as a box below the line with a sign icon in the gutter.
 
 For multi-line comments, visually select the range first then press `i`. For file-level comments that apply to the whole file, press `F`. Comments on the left (old) side of the diff only show on that side, and same for the right (new) side.
 
@@ -96,6 +96,8 @@ Lines prefixed with `~` refer to the old (left) side of the diff. Comments persi
 | `S` | Send comments to sidekick.nvim |
 | `<C-r>` | Clear all comments |
 | `q` | Close and export comments to clipboard |
+| `t` | Toggle side-by-side/inline layout |
+| `g?` | Show codediff help |
 
 **Edit mode** (when `readonly = false`):
 | Key | Action |

@@ -194,6 +194,7 @@ ACTIONS                                               *review-keymaps-actions*
     `R`           Toggle readonly/edit mode               |n|
     `q`           Export & close review                   |n|
     `?`           Show help popup                         |n|
+    `t`           Toggle layout (side-by-side/inline)     |n|
     `g?`          Show codediff help                      |n|
 
 POPUP                                                 *review-keymaps-popup*
