@@ -154,6 +154,16 @@ function M.get_buffers()
   return lifecycle.get_buffers(current_tabpage)
 end
 
+---@return string|nil original path
+---@return string|nil modified path
+function M.get_paths()
+  local lifecycle = get_lifecycle()
+  if not lifecycle or not current_tabpage then
+    return nil, nil
+  end
+  return lifecycle.get_paths(current_tabpage)
+end
+
 -- Called when codediff session is created
 function M.on_session_created(tabpage)
   current_tabpage = tabpage
@@ -202,16 +212,26 @@ function M.on_session_created(tabpage)
       if bufnr ~= ob and bufnr ~= mb then
         return
       end
+      local op, mp = lifecycle.get_paths(current_tabpage)
       local side = bufnr == ob and "old" or "new"
-      marks.render_for_buffer(bufnr, side)
+      local path = bufnr == ob and op or mp
+      marks.render_for_buffer(bufnr, side, path)
     end,
   })
 
   -- Initial render with delay for buffers to be ready
   vim.defer_fn(function()
-    marks.render_for_buffer(orig_buf, "old")
-    marks.render_for_buffer(mod_buf, "new")
+    marks.render_for_buffer(orig_buf, "old", orig_path)
+    marks.render_for_buffer(mod_buf, "new", mod_path)
   end, 100)
+
+  -- Focus the modified (right) pane
+  vim.defer_fn(function()
+    local sess = lifecycle.get_session(tabpage)
+    if sess and sess.modified_win and vim.api.nvim_win_is_valid(sess.modified_win) then
+      vim.api.nvim_set_current_win(sess.modified_win)
+    end
+  end, 150)
 end
 
 -- Called when codediff session is closed
@@ -235,11 +255,12 @@ function M.on_file_changed(tabpage)
   end
 
   local orig_buf, mod_buf = lifecycle.get_buffers(tabpage)
+  local orig_path, mod_path = lifecycle.get_paths(tabpage)
 
   -- Re-render comments
   vim.defer_fn(function()
-    marks.render_for_buffer(orig_buf, "old")
-    marks.render_for_buffer(mod_buf, "new")
+    marks.render_for_buffer(orig_buf, "old", orig_path)
+    marks.render_for_buffer(mod_buf, "new", mod_path)
   end, 50)
 end
 

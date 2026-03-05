@@ -48,27 +48,29 @@ end
 
 ---@param bufnr number
 ---@param side? "old"|"new"
-function M.render_for_buffer(bufnr, side)
+---@param file_override? string file path to use directly instead of parsing buffer name
+function M.render_for_buffer(bufnr, side, file_override)
   if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
 
-  local bufname = vim.api.nvim_buf_get_name(bufnr)
-  if not bufname or bufname == "" then
-    return
-  end
-
-  -- Extract file path, handling codediff:// virtual buffers
   local file
-  if bufname:match("^codediff://") then
-    -- Virtual buffer: extract path from URI
-    -- Format: codediff://repo/path/to/file.lua?rev=xxx
-    local path = bufname:match("^codediff://[^/]+/(.+)%?") or bufname:match("^codediff://[^/]+/(.+)$")
-    if path then
-      file = normalize_path(path)
-    end
+  if file_override then
+    file = normalize_path(file_override)
   else
-    file = normalize_path(vim.fn.fnamemodify(bufname, ":."))
+    local bufname = vim.api.nvim_buf_get_name(bufnr)
+    if not bufname or bufname == "" then
+      return
+    end
+
+    if bufname:match("^codediff://") then
+      local path = bufname:match("^codediff://[^/]+/(.+)%?") or bufname:match("^codediff://[^/]+/(.+)$")
+      if path then
+        file = normalize_path(path)
+      end
+    else
+      file = normalize_path(vim.fn.fnamemodify(bufname, ":."))
+    end
   end
 
   if not file then
@@ -146,11 +148,12 @@ function M.refresh()
   end
 
   local orig_buf, mod_buf = hooks.get_buffers()
+  local orig_path, mod_path = hooks.get_paths()
   if orig_buf then
-    M.render_for_buffer(orig_buf, "old")
+    M.render_for_buffer(orig_buf, "old", orig_path)
   end
   if mod_buf then
-    M.render_for_buffer(mod_buf, "new")
+    M.render_for_buffer(mod_buf, "new", mod_path)
   end
 end
 
