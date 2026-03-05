@@ -226,8 +226,7 @@ function M.count()
 end
 
 function M.clear()
-  M.comments = {}
-  id_counter = 0
+  M.reset()
   storage.clear()
   storage.clear_revisions()
 end

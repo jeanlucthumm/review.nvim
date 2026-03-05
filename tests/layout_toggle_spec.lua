@@ -108,7 +108,7 @@ describe("layout toggle comment persistence", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       -- Padding should exist on orig_buf
       local padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, {})
@@ -127,7 +127,7 @@ describe("layout toggle comment persistence", function()
       -- Re-render and re-align (what refresh() does)
       marks.render_for_buffer(new_orig, "old", "test.lua")
       marks.render_for_buffer(new_mod, "new", "test.lua")
-      marks.align_buffers(new_orig, new_mod, "test.lua")
+      marks.align_buffers(new_orig, new_mod, "test.lua", "test.lua")
 
       -- Padding should exist on the new orig buffer
       local new_padding = vim.api.nvim_buf_get_extmarks(new_orig, ns_padding, 0, -1, {})

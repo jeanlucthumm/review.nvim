@@ -2,26 +2,13 @@ local M = {}
 
 local marks = require("review.marks")
 local config = require("review.config")
+local normalize_path = require("review.utils").normalize_path
 
 ---@type number|nil Current tabpage with active codediff session
 local current_tabpage = nil
 
 ---@type number|nil Autocmd group for buffer events
 local buf_augroup = nil
-
----Normalize a file path for consistent storage/lookup
----@param path string
----@return string
-local function normalize_path(path)
-  if not path then
-    return path
-  end
-  -- Remove leading ./ if present
-  path = path:gsub("^%./", "")
-  -- Remove trailing slashes
-  path = path:gsub("/+$", "")
-  return path
-end
 
 ---Set filetype for a buffer based on file path
 ---@param bufnr number

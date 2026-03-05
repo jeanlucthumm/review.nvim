@@ -2,23 +2,10 @@ local M = {}
 
 local store = require("review.store")
 local config = require("review.config")
+local normalize_path = require("review.utils").normalize_path
 
 local ns_id = vim.api.nvim_create_namespace("review")
 local ns_padding = vim.api.nvim_create_namespace("review_padding")
-
----Normalize a file path to match how comments are stored
----@param path string
----@return string
-local function normalize_path(path)
-  if not path then
-    return path
-  end
-  -- Remove leading ./ if present
-  path = path:gsub("^%./", "")
-  -- Remove trailing slashes
-  path = path:gsub("/+$", "")
-  return path
-end
 
 ---@param text string
 ---@param type_name string
@@ -113,44 +100,39 @@ function M.render_for_buffer(bufnr, side, file_override)
         end
       end
     else
+      local line_start = comment.line - 1
+      local line_end_0 = (comment.line_end or comment.line) - 1
+      local is_range = line_end_0 ~= line_start
 
-    local line_start = comment.line - 1
-    local line_end_0 = (comment.line_end or comment.line) - 1
-    local is_range = line_end_0 ~= line_start
-
-    if line_start >= 0 then
-      if is_range then
-        -- Start line: sign + line highlight
-        pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, line_start, 0, {
-          sign_text = icon,
-          sign_hl_group = hl,
-          line_hl_group = line_hl,
-        })
-
-        -- Middle lines: line highlight only
-        for l = line_start + 1, line_end_0 - 1 do
-          pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, l, 0, {
+      if line_start >= 0 then
+        if is_range then
+          pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, line_start, 0, {
+            sign_text = icon,
+            sign_hl_group = hl,
             line_hl_group = line_hl,
           })
-        end
 
-        -- Last line: line highlight + comment box
-        pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, line_end_0, 0, {
-          line_hl_group = line_hl,
-          virt_lines = virt_lines,
-          virt_lines_above = false,
-        })
-      else
-        -- Single line: sign + line highlight + comment box
-        pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, line_start, 0, {
-          sign_text = icon,
-          sign_hl_group = hl,
-          line_hl_group = line_hl,
-          virt_lines = virt_lines,
-          virt_lines_above = false,
-        })
+          for l = line_start + 1, line_end_0 - 1 do
+            pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, l, 0, {
+              line_hl_group = line_hl,
+            })
+          end
+
+          pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, line_end_0, 0, {
+            line_hl_group = line_hl,
+            virt_lines = virt_lines,
+            virt_lines_above = false,
+          })
+        else
+          pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, line_start, 0, {
+            sign_text = icon,
+            sign_hl_group = hl,
+            line_hl_group = line_hl,
+            virt_lines = virt_lines,
+            virt_lines_above = false,
+          })
+        end
       end
-    end
     end
   end
 end
@@ -173,8 +155,9 @@ end
 ---Add blank padding lines on one buffer to match comment boxes on the other
 ---@param orig_buf number
 ---@param mod_buf number
----@param file string
-function M.align_buffers(orig_buf, mod_buf, file)
+---@param orig_file string|nil
+---@param mod_file string|nil
+function M.align_buffers(orig_buf, mod_buf, orig_file, mod_file)
   if orig_buf and vim.api.nvim_buf_is_valid(orig_buf) then
     vim.api.nvim_buf_clear_namespace(orig_buf, ns_padding, 0, -1)
   end
@@ -182,15 +165,17 @@ function M.align_buffers(orig_buf, mod_buf, file)
     vim.api.nvim_buf_clear_namespace(mod_buf, ns_padding, 0, -1)
   end
 
-  if not file or not orig_buf or not mod_buf
+  if not orig_buf or not mod_buf
     or not vim.api.nvim_buf_is_valid(orig_buf)
-    or not vim.api.nvim_buf_is_valid(mod_buf) then
+    or not vim.api.nvim_buf_is_valid(mod_buf)
+    or (not orig_file and not mod_file) then
     return
   end
 
   -- Build height maps: attach_line -> total virt_line height per side
   -- Skip file comments (line 0) since they render identically on both sides
-  local function build_height_map(side)
+  local function build_height_map(file, side)
+    if not file then return {} end
     local map = {}
     for _, comment in ipairs(store.get_for_file(file, side)) do
       if comment.line ~= 0 and (comment.side or "new") == side then
@@ -201,8 +186,8 @@ function M.align_buffers(orig_buf, mod_buf, file)
     return map
   end
 
-  local old_map = build_height_map("old")
-  local new_map = build_height_map("new")
+  local old_map = build_height_map(orig_file, "old")
+  local new_map = build_height_map(mod_file, "new")
 
   local all_lines = {}
   for line in pairs(old_map) do all_lines[line] = true end
@@ -244,7 +229,7 @@ function M.refresh()
   end
 
   if orig_buf and mod_buf and (orig_path or mod_path) then
-    M.align_buffers(orig_buf, mod_buf, orig_path or mod_path)
+    M.align_buffers(orig_buf, mod_buf, orig_path, mod_path)
   end
 end
 

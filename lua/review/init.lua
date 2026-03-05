@@ -4,6 +4,7 @@ local config = require("review.config")
 local highlights = require("review.highlights")
 local hooks = require("review.hooks")
 local keymaps = require("review.keymaps")
+local storage = require("review.storage")
 local store = require("review.store")
 local export = require("review.export")
 local comments = require("review.comments")
@@ -81,7 +82,6 @@ local function open_codediff_with_revisions(rev1, rev2)
   end
 
   -- Scope storage to revision range for commit reviews
-  local storage = require("review.storage")
   if rev1 and rev2 then
     storage.set_revisions(rev1, rev2)
   else
@@ -148,7 +148,7 @@ function M.close()
   -- Close the tab
   vim.cmd("tabclose")
   hooks.on_session_closed()
-  require("review.storage").clear_revisions()
+  storage.clear_revisions()
 end
 
 function M.export()

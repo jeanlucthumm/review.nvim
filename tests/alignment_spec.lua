@@ -46,7 +46,7 @@ describe("comment alignment between panes", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       local padding_marks = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, { details = true })
       assert.equals(1, #padding_marks)
@@ -62,7 +62,7 @@ describe("comment alignment between panes", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       local padding_marks = vim.api.nvim_buf_get_extmarks(mod_buf, ns_padding, 0, -1, { details = true })
       assert.equals(1, #padding_marks)
@@ -72,7 +72,7 @@ describe("comment alignment between panes", function()
     end)
 
     it("adds no padding when no comments exist", function()
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       local orig_padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, {})
       local mod_padding = vim.api.nvim_buf_get_extmarks(mod_buf, ns_padding, 0, -1, {})
@@ -86,7 +86,7 @@ describe("comment alignment between panes", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       local orig_padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, {})
       local mod_padding = vim.api.nvim_buf_get_extmarks(mod_buf, ns_padding, 0, -1, {})
@@ -102,7 +102,7 @@ describe("comment alignment between panes", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       -- Old side should get 2 lines of padding (5 - 3 = 2)
       local orig_padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, { details = true })
@@ -120,7 +120,7 @@ describe("comment alignment between panes", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       -- Old side gets padding at line 3 (for new-side comment)
       local orig_padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, {})
@@ -136,7 +136,7 @@ describe("comment alignment between panes", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       local first_padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, {})
       assert.equals(1, #first_padding)
@@ -145,7 +145,7 @@ describe("comment alignment between panes", function()
       store.clear()
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       local second_padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, {})
       assert.equals(0, #second_padding)
@@ -156,7 +156,7 @@ describe("comment alignment between panes", function()
 
       marks.render_for_buffer(orig_buf, "old", "test.lua")
       marks.render_for_buffer(mod_buf, "new", "test.lua")
-      marks.align_buffers(orig_buf, mod_buf, "test.lua")
+      marks.align_buffers(orig_buf, mod_buf, "test.lua", "test.lua")
 
       local orig_padding = vim.api.nvim_buf_get_extmarks(orig_buf, ns_padding, 0, -1, {})
       local mod_padding = vim.api.nvim_buf_get_extmarks(mod_buf, ns_padding, 0, -1, {})
