@@ -11,8 +11,10 @@ local Popup = require("nui.popup")
 
 ---@type Commit[]
 local commits = {}
----@type table<string, boolean>
-local selected = {}
+---@type number|nil
+local range_start = nil
+---@type number|nil
+local range_end = nil
 ---@type any
 local popup = nil
 
@@ -59,9 +61,18 @@ end
 
 local ns_id = nil
 
-local function format_line(commit)
-  local is_selected = selected[commit.hash] and true or false
-  local marker = is_selected and "[x]" or "[ ]"
+local function is_in_range(idx)
+  if not range_start or not range_end then
+    return false
+  end
+  local lo = math.min(range_start, range_end)
+  local hi = math.max(range_start, range_end)
+  return idx >= lo and idx <= hi
+end
+
+local function format_line(idx, commit)
+  local in_range = is_in_range(idx)
+  local marker = in_range and "[x]" or "[ ]"
   local hash = commit.short_hash
   local meta = string.format("(%s, %s)", commit.author, commit.date)
   local line = string.format("%s %s %s %s", marker, hash, commit.message, meta)
@@ -78,7 +89,7 @@ local function format_line(commit)
   local line_len = #line
   local hl = {}
 
-  if is_selected then
+  if in_range then
     table.insert(hl, { "ReviewPickerSelected", 0, math.min(marker_len, line_len) })
   end
   if hash_start < line_len then
@@ -88,7 +99,7 @@ local function format_line(commit)
     table.insert(hl, { "ReviewPickerMeta", meta_start, line_len })
   end
 
-  return line, hl, is_selected
+  return line, hl, in_range
 end
 
 local function apply_line_hl(buf, row, line_len, highlights, is_selected)
@@ -118,8 +129,8 @@ local function render_lines()
   local lines = {}
   local line_data = {}
 
-  for _, commit in ipairs(commits) do
-    local line, hl, is_sel = format_line(commit)
+  for i, commit in ipairs(commits) do
+    local line, hl, is_sel = format_line(i, commit)
     table.insert(lines, line)
     table.insert(line_data, { hl = hl, is_selected = is_sel, len = #line })
   end
@@ -135,48 +146,29 @@ local function render_lines()
   end
 end
 
-local function update_line(line_num)
-  if not popup then return end
-  local buf = popup.bufnr
-  local commit = commits[line_num]
-  if not commit then return end
-
-  local line, hl, is_sel = format_line(commit)
-
-  vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
-  vim.api.nvim_buf_set_lines(buf, line_num - 1, line_num, false, { line })
-  vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-
-  if ns_id then
-    vim.api.nvim_buf_clear_namespace(buf, ns_id, line_num - 1, line_num)
-    apply_line_hl(buf, line_num - 1, #line, hl, is_sel)
-  end
-end
-
-local function toggle_selection()
+local function toggle_range()
   local cursor = vim.api.nvim_win_get_cursor(0)
-  local line_num = cursor[1]
-  local commit = commits[line_num]
-  if commit then
-    selected[commit.hash] = not selected[commit.hash]
-    update_line(line_num)
+  local idx = cursor[1]
+  if not commits[idx] then
+    return
   end
-end
 
-local function select_none()
-  selected = {}
+  if not range_start then
+    range_start = idx
+    range_end = idx
+  elseif idx == range_start and idx == range_end then
+    range_start = nil
+    range_end = nil
+  else
+    range_end = idx
+  end
   render_lines()
 end
 
-local function get_selected_commits()
-  local result = {}
-  -- Maintain order from commits list (newest first from git log)
-  for _, commit in ipairs(commits) do
-    if selected[commit.hash] then
-      table.insert(result, commit)
-    end
-  end
-  return result
+local function select_none()
+  range_start = nil
+  range_end = nil
+  render_lines()
 end
 
 local function close_picker()
@@ -185,35 +177,36 @@ local function close_picker()
     popup = nil
   end
   commits = {}
-  selected = {}
+  range_start = nil
+  range_end = nil
 end
 
 local function confirm_selection(callback)
-  local selected_commits = get_selected_commits()
+  local lo, hi
 
-  -- If nothing explicitly selected, use the commit under the cursor
-  if #selected_commits == 0 then
+  if range_start and range_end then
+    lo = math.min(range_start, range_end)
+    hi = math.max(range_start, range_end)
+  else
     local cursor = vim.api.nvim_win_get_cursor(0)
-    local commit = commits[cursor[1]]
-    if commit then
-      selected_commits = { commit }
+    local idx = cursor[1]
+    if commits[idx] then
+      lo = idx
+      hi = idx
     end
   end
 
-  close_picker()
-
-  if #selected_commits == 0 then
+  if not lo or not hi then
+    close_picker()
     callback(nil, nil)
     return
   end
 
-  -- Git log returns newest first, so:
-  -- - First selected = newest
-  -- - Last selected = oldest
-  local newest = selected_commits[1]
-  local oldest = selected_commits[#selected_commits]
+  -- Git log returns newest first, so lower index = newer commit
+  local newest = commits[lo]
+  local oldest = commits[hi]
 
-  -- Use ^ on oldest to include its changes
+  close_picker()
   callback(oldest.hash .. "^", newest.hash)
 end
 
@@ -225,7 +218,8 @@ function M.open(callback)
   end
 
   commits = fetch_commits(50)
-  selected = {}
+  range_start = nil
+  range_end = nil
 
   if #commits == 0 then
     vim.notify("No commits found", vim.log.levels.WARN, { title = "review.nvim" })
@@ -268,7 +262,7 @@ function M.open(callback)
 
   -- Keymaps using nui's map method
   local map_opts = { noremap = true, nowait = true }
-  popup:map("n", "<Space>", toggle_selection, map_opts)
+  popup:map("n", "<Space>", toggle_range, map_opts)
   popup:map("n", "<CR>", function() confirm_selection(callback) end, map_opts)
   popup:map("n", "q", close_picker, map_opts)
   popup:map("n", "<Esc>", close_picker, map_opts)

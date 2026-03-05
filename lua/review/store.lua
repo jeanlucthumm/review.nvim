@@ -28,6 +28,12 @@ local function persist()
   storage.save(M.comments)
 end
 
+function M.reset()
+  M.comments = {}
+  id_counter = 0
+  loaded = false
+end
+
 function M.load()
   if loaded then
     return
@@ -223,6 +229,7 @@ function M.clear()
   M.comments = {}
   id_counter = 0
   storage.clear()
+  storage.clear_revisions()
 end
 
 return M

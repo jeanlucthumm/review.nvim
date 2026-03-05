@@ -80,7 +80,16 @@ local function open_codediff_with_revisions(rev1, rev2)
     return
   end
 
-  -- Load persisted comments
+  -- Scope storage to revision range for commit reviews
+  local storage = require("review.storage")
+  if rev1 and rev2 then
+    storage.set_revisions(rev1, rev2)
+  else
+    storage.clear_revisions()
+  end
+
+  -- Load persisted comments (reset first so we load from the new storage path)
+  store.reset()
   store.load()
 
   -- Open CodeDiff
@@ -139,6 +148,7 @@ function M.close()
   -- Close the tab
   vim.cmd("tabclose")
   hooks.on_session_closed()
+  require("review.storage").clear_revisions()
 end
 
 function M.export()
