@@ -4,6 +4,7 @@ local store = require("review.store")
 local config = require("review.config")
 
 local ns_id = vim.api.nvim_create_namespace("review")
+local ns_padding = vim.api.nvim_create_namespace("review_padding")
 
 ---Normalize a file path to match how comments are stored
 ---@param path string
@@ -98,6 +99,19 @@ function M.render_for_buffer(bufnr, side, file_override)
         virt_lines = virt_lines,
         virt_lines_above = true,
       })
+      -- Scroll windows to reveal virt_lines above row 0
+      local virt_line_count = #virt_lines
+      for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == bufnr then
+          vim.api.nvim_win_call(win, function()
+            local view = vim.fn.winsaveview()
+            if view.topline <= 1 then
+              view.topfill = virt_line_count
+              vim.fn.winrestview(view)
+            end
+          end)
+        end
+      end
     else
 
     local line_start = comment.line - 1
@@ -141,6 +155,79 @@ function M.render_for_buffer(bufnr, side, file_override)
   end
 end
 
+---Calculate the height of a comment's virtual line box
+---@param comment table
+---@return number height, number attach_line (0-indexed)
+local function comment_box_height(comment)
+  local text_lines = vim.split(comment.text, "\n")
+  local height = #text_lines + 2 -- top border + content + bottom border
+  local attach_line
+  if comment.line == 0 then
+    attach_line = 0
+  else
+    attach_line = (comment.line_end or comment.line) - 1
+  end
+  return height, attach_line
+end
+
+---Add blank padding lines on one buffer to match comment boxes on the other
+---@param orig_buf number
+---@param mod_buf number
+---@param file string
+function M.align_buffers(orig_buf, mod_buf, file)
+  if orig_buf and vim.api.nvim_buf_is_valid(orig_buf) then
+    vim.api.nvim_buf_clear_namespace(orig_buf, ns_padding, 0, -1)
+  end
+  if mod_buf and vim.api.nvim_buf_is_valid(mod_buf) then
+    vim.api.nvim_buf_clear_namespace(mod_buf, ns_padding, 0, -1)
+  end
+
+  if not file or not orig_buf or not mod_buf
+    or not vim.api.nvim_buf_is_valid(orig_buf)
+    or not vim.api.nvim_buf_is_valid(mod_buf) then
+    return
+  end
+
+  -- Build height maps: attach_line -> total virt_line height per side
+  -- Skip file comments (line 0) since they render identically on both sides
+  local function build_height_map(side)
+    local map = {}
+    for _, comment in ipairs(store.get_for_file(file, side)) do
+      if comment.line ~= 0 and (comment.side or "new") == side then
+        local height, attach_line = comment_box_height(comment)
+        map[attach_line] = (map[attach_line] or 0) + height
+      end
+    end
+    return map
+  end
+
+  local old_map = build_height_map("old")
+  local new_map = build_height_map("new")
+
+  local all_lines = {}
+  for line in pairs(old_map) do all_lines[line] = true end
+  for line in pairs(new_map) do all_lines[line] = true end
+
+  for line in pairs(all_lines) do
+    local old_h = old_map[line] or 0
+    local new_h = new_map[line] or 0
+    local diff = old_h - new_h
+
+    if diff ~= 0 then
+      local target_buf = diff > 0 and mod_buf or orig_buf
+      local pad_count = math.abs(diff)
+      local padding = {}
+      for _ = 1, pad_count do
+        table.insert(padding, { { "", "Normal" } })
+      end
+      pcall(vim.api.nvim_buf_set_extmark, target_buf, ns_padding, line, 0, {
+        virt_lines = padding,
+        virt_lines_above = false,
+      })
+    end
+  end
+end
+
 function M.refresh()
   local ok, hooks = pcall(require, "review.hooks")
   if not ok then
@@ -155,12 +242,17 @@ function M.refresh()
   if mod_buf then
     M.render_for_buffer(mod_buf, "new", mod_path)
   end
+
+  if orig_buf and mod_buf and (orig_path or mod_path) then
+    M.align_buffers(orig_buf, mod_buf, orig_path or mod_path)
+  end
 end
 
 function M.clear_all()
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_valid(bufnr) then
       vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+      vim.api.nvim_buf_clear_namespace(bufnr, ns_padding, 0, -1)
     end
   end
 end

@@ -67,6 +67,23 @@ function M.get_session()
   return lifecycle.get_session(current_tabpage)
 end
 
+---Relativize a path against the git root for consistent storage/lookup
+---@param path string|nil
+---@param lifecycle table
+---@param tabpage number
+---@return string|nil
+local function relativize_path(path, lifecycle, tabpage)
+  if not path then
+    return nil
+  end
+  local git_ctx = lifecycle.get_git_context(tabpage)
+  if git_ctx and git_ctx.git_root then
+    local abs = vim.fn.fnamemodify(path, ":p")
+    return normalize_path(abs:gsub("^" .. vim.pesc(git_ctx.git_root) .. "/", ""))
+  end
+  return normalize_path(vim.fn.fnamemodify(path, ":."))
+end
+
 ---@return string|nil file path
 ---@return number|nil line number
 ---@return "old"|"new"|nil side
@@ -114,15 +131,7 @@ function M.get_cursor_position()
     return nil, nil, nil
   end
 
-  -- Return relative path
-  local git_ctx = lifecycle.get_git_context(current_tabpage)
-  if git_ctx and git_ctx.git_root then
-    local abs_path = vim.fn.fnamemodify(file_path, ":p")
-    local rel_path = abs_path:gsub("^" .. vim.pesc(git_ctx.git_root) .. "/", "")
-    return normalize_path(rel_path), cursor[1], side
-  end
-
-  return normalize_path(vim.fn.fnamemodify(file_path, ":.")), cursor[1], side
+  return relativize_path(file_path, lifecycle, current_tabpage), cursor[1], side
 end
 
 ---@return string|nil file path
@@ -161,7 +170,9 @@ function M.get_paths()
   if not lifecycle or not current_tabpage then
     return nil, nil
   end
-  return lifecycle.get_paths(current_tabpage)
+  local orig_path, mod_path = lifecycle.get_paths(current_tabpage)
+  return relativize_path(orig_path, lifecycle, current_tabpage),
+    relativize_path(mod_path, lifecycle, current_tabpage)
 end
 
 -- Called when codediff session is created
@@ -176,9 +187,9 @@ function M.on_session_created(tabpage)
   local orig_buf, mod_buf = lifecycle.get_buffers(tabpage)
 
   -- Set filetype for syntax highlighting (needed for commit reviews)
-  local orig_path, mod_path = lifecycle.get_paths(tabpage)
-  set_buffer_filetype(orig_buf, orig_path)
-  set_buffer_filetype(mod_buf, mod_path)
+  local raw_orig_path, raw_mod_path = lifecycle.get_paths(tabpage)
+  set_buffer_filetype(orig_buf, raw_orig_path)
+  set_buffer_filetype(mod_buf, raw_mod_path)
 
   -- Make buffers readonly if configured
   local cfg = config.get()
@@ -212,17 +223,13 @@ function M.on_session_created(tabpage)
       if bufnr ~= ob and bufnr ~= mb then
         return
       end
-      local op, mp = lifecycle.get_paths(current_tabpage)
-      local side = bufnr == ob and "old" or "new"
-      local path = bufnr == ob and op or mp
-      marks.render_for_buffer(bufnr, side, path)
+      marks.refresh()
     end,
   })
 
   -- Initial render with delay for buffers to be ready
   vim.defer_fn(function()
-    marks.render_for_buffer(orig_buf, "old", orig_path)
-    marks.render_for_buffer(mod_buf, "new", mod_path)
+    marks.refresh()
   end, 100)
 
   -- Focus the modified (right) pane
@@ -254,13 +261,9 @@ function M.on_file_changed(tabpage)
     return
   end
 
-  local orig_buf, mod_buf = lifecycle.get_buffers(tabpage)
-  local orig_path, mod_path = lifecycle.get_paths(tabpage)
-
   -- Re-render comments
   vim.defer_fn(function()
-    marks.render_for_buffer(orig_buf, "old", orig_path)
-    marks.render_for_buffer(mod_buf, "new", mod_path)
+    marks.refresh()
   end, 50)
 end
 
