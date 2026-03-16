@@ -221,11 +221,19 @@ function M.on_session_created(tabpage)
 
   -- Focus the modified (right) pane
   vim.defer_fn(function()
-    local sess = lifecycle.get_session(tabpage)
-    if sess and sess.modified_win and vim.api.nvim_win_is_valid(sess.modified_win) then
-      vim.api.nvim_set_current_win(sess.modified_win)
-    end
+    M._focus_modified_pane(lifecycle, tabpage)
   end, 150)
+end
+
+function M._focus_modified_pane(lifecycle, tabpage)
+  local cur_cfg = vim.api.nvim_win_get_config(vim.api.nvim_get_current_win())
+  if cur_cfg.relative ~= "" then
+    return
+  end
+  local sess = lifecycle.get_session(tabpage)
+  if sess and sess.modified_win and vim.api.nvim_win_is_valid(sess.modified_win) then
+    vim.api.nvim_set_current_win(sess.modified_win)
+  end
 end
 
 -- Called when codediff session is closed
