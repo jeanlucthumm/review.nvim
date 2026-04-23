@@ -4,6 +4,7 @@ local store = require("review.store")
 local hooks = require("review.hooks")
 local popup = require("review.popup")
 local marks = require("review.marks")
+local utils = require("review.utils")
 
 local function notify(msg, level)
   vim.notify(msg, level, { title = "review.nvim" })
@@ -215,22 +216,7 @@ function M.list()
     local type_info = config.get_type(comment.type)
     local icon = type_info and type_info.icon or "●"
     local name = type_info and type_info.name or comment.type
-    local location
-    local is_old = (comment.side or "new") == "old"
-    if comment.line == 0 then
-      location = comment.file
-    elseif is_old then
-      if comment.line_end and comment.line_end ~= comment.line then
-        location = string.format("%s:~%d-~%d", comment.file, comment.line, comment.line_end)
-      else
-        location = string.format("%s:~%d", comment.file, comment.line)
-      end
-    elseif comment.line_end and comment.line_end ~= comment.line then
-      location = string.format("%s:%d-%d", comment.file, comment.line, comment.line_end)
-    else
-      location = string.format("%s:%d", comment.file, comment.line)
-    end
-    local display = string.format("%s %s [%s] %s", icon, location, name, comment.text)
+    local display = string.format("%s %s [%s] %s", icon, utils.format_location(comment), name, comment.text)
     table.insert(items, { display = display, comment = comment })
   end
 

@@ -2,6 +2,7 @@ local M = {}
 
 local store = require("review.store")
 local config = require("review.config")
+local utils = require("review.utils")
 
 local function notify(msg, level)
   vim.notify(msg, level, { title = "review.nvim" })
@@ -29,32 +30,18 @@ function M.generate_markdown()
   -- Numbered list of comments
   for i, comment in ipairs(all_comments) do
     local type_name = string.upper(comment.type)
-    local location
-    local is_old = (comment.side or "new") == "old"
-    if comment.line == 0 then
-      location = comment.file
-    elseif is_old then
-      if comment.line_end and comment.line_end ~= comment.line then
-        location = string.format("%s:~%d-~%d", comment.file, comment.line, comment.line_end)
-      else
-        location = string.format("%s:~%d", comment.file, comment.line)
-      end
-    elseif comment.line_end and comment.line_end ~= comment.line then
-      location = string.format("%s:%d-%d", comment.file, comment.line, comment.line_end)
-    else
-      location = string.format("%s:%d", comment.file, comment.line)
-    end
-
+    local location = utils.format_location(comment)
     local source = comment.source_lines
+
     if source and #source == 1 then
       table.insert(lines, string.format("%d. **[%s]** `%s` `%s` - %s", i, type_name, location, source[1], comment.text))
-    elseif source and #source > 1 then
-      table.insert(lines, string.format("%d. **[%s]** `%s` - %s", i, type_name, location, comment.text))
-      for _, src_line in ipairs(source) do
-        table.insert(lines, "   > " .. src_line)
-      end
     else
       table.insert(lines, string.format("%d. **[%s]** `%s` - %s", i, type_name, location, comment.text))
+      if source and #source > 1 then
+        for _, src_line in ipairs(source) do
+          table.insert(lines, "   > " .. src_line)
+        end
+      end
     end
   end
 
