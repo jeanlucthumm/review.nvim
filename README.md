@@ -4,6 +4,14 @@ Code review annotations for codediff.nvim, optimized for AI feedback loops.
 
 Inspired by [tuicr](https://github.com/agavra/tuicr).
 
+## What this fork adds
+
+Changes over [upstream](https://github.com/georgeguimaraes/review.nvim):
+
+- **Source context in exports** — each comment carries the actual line(s) being commented on, so the LLM anchors on real code instead of bare line numbers.
+- **LLM-oriented comment types** — `NOTE` (general feedback, LLM has leeway), `ISSUE` (definitive, must address), `QUESTION` (clarification; answer inline, no code changes). Replaces the human-review set (note/suggestion/issue/praise).
+- **Leaner export preamble** — drops the "I reviewed your code" intro; just the type legend.
+
 ## Features
 
 - Add comments to specific lines in diff view (Note, Suggestion, Issue, Praise)
