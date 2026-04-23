@@ -1,27 +1,25 @@
 local M = {}
 
+local config = require("review.config")
+
 function M.setup()
-  local links = {
-    ReviewNote = "DiagnosticInfo",
-    ReviewSuggestion = "DiagnosticHint",
-    ReviewIssue = "DiagnosticWarn",
-    ReviewPraise = "DiagnosticOk",
+  -- Shared (non-per-type) highlight groups
+  local shared = {
     ReviewSign = "Comment",
     ReviewVirtText = "Comment",
     ReviewPickerHash = "Identifier",
     ReviewPickerMeta = "Comment",
     ReviewPickerSelected = "String",
   }
-
-  for group, link in pairs(links) do
+  for group, link in pairs(shared) do
     vim.api.nvim_set_hl(0, group, { link = link, default = true })
   end
 
-  -- Line highlights (darker background, no underline)
-  vim.api.nvim_set_hl(0, "ReviewNoteLine", { bg = "#0d1f28", underline = false, default = true })
-  vim.api.nvim_set_hl(0, "ReviewSuggestionLine", { bg = "#152015", underline = false, default = true })
-  vim.api.nvim_set_hl(0, "ReviewIssueLine", { bg = "#28250d", underline = false, default = true })
-  vim.api.nvim_set_hl(0, "ReviewPraiseLine", { bg = "#15152a", underline = false, default = true })
+  -- Per-type highlights driven from the configured comment_types list
+  for _, t in ipairs(config.get().comment_types) do
+    vim.api.nvim_set_hl(0, t.hl, { link = t.hl_link, default = true })
+    vim.api.nvim_set_hl(0, t.line_hl, { bg = t.line_bg, underline = false, default = true })
+  end
 
   vim.fn.sign_define("ReviewComment", {
     text = "●",

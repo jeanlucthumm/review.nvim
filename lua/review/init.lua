@@ -169,20 +169,9 @@ function M.count()
   return store.count()
 end
 
-function M.add_note()
-  comments.add_at_cursor("note")
-end
-
-function M.add_suggestion()
-  comments.add_at_cursor("suggestion")
-end
-
-function M.add_issue()
-  comments.add_at_cursor("issue")
-end
-
-function M.add_praise()
-  comments.add_at_cursor("praise")
+---@param type_id string CommentType id
+function M.add(type_id)
+  comments.add_at_cursor(type_id)
 end
 
 function M.toggle_readonly()

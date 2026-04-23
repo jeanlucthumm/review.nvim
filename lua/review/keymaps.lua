@@ -99,10 +99,10 @@ local function show_help()
     entry("readonly_add_file", "File-level comment", comment_entries)
   else
     entry("add_comment", "Add comment (pick type)", comment_entries)
-    entry("add_note", "Add note", comment_entries)
-    entry("add_suggestion", "Add suggestion", comment_entries)
-    entry("add_issue", "Add issue", comment_entries)
-    entry("add_praise", "Add praise", comment_entries)
+    for _, t in ipairs(cfg.comment_types) do
+      local lhs = "<localleader>c" .. t.key
+      table.insert(comment_entries, { key = format_key(lhs), desc = "Add " .. t.name:lower() })
+    end
     entry("add_file_comment", "File comment", comment_entries)
     entry("edit_comment", "Edit comment", comment_entries)
     entry("delete_comment", "Delete comment", comment_entries)
@@ -254,14 +254,13 @@ local function set_buffer_keymaps(bufnr)
     -- EDIT MODE: Typed add keymaps with visual mode support
     set(km.add_comment, function() comments.add_with_menu() end, "Add comment (pick type)")
     set_visual(km.add_comment, ":<C-u>lua require('review.comments').add_for_range()<CR>", "Add comment for selection")
-    set(km.add_note, function() comments.add_at_cursor("note") end, "Add note")
-    set_visual(km.add_note, ":<C-u>lua require('review.comments').add_for_range('note')<CR>", "Add note for selection")
-    set(km.add_suggestion, function() comments.add_at_cursor("suggestion") end, "Add suggestion")
-    set_visual(km.add_suggestion, ":<C-u>lua require('review.comments').add_for_range('suggestion')<CR>", "Add suggestion for selection")
-    set(km.add_issue, function() comments.add_at_cursor("issue") end, "Add issue")
-    set_visual(km.add_issue, ":<C-u>lua require('review.comments').add_for_range('issue')<CR>", "Add issue for selection")
-    set(km.add_praise, function() comments.add_at_cursor("praise") end, "Add praise")
-    set_visual(km.add_praise, ":<C-u>lua require('review.comments').add_for_range('praise')<CR>", "Add praise for selection")
+    for _, t in ipairs(cfg.comment_types) do
+      local lhs = "<localleader>c" .. t.key
+      local id = t.id
+      local desc = "Add " .. t.name:lower()
+      set(lhs, function() comments.add_at_cursor(id) end, desc)
+      set_visual(lhs, string.format(":<C-u>lua require('review.comments').add_for_range('%s')<CR>", id), desc .. " for selection")
+    end
     set(km.add_file_comment, function() comments.file_comment() end, "File comment")
     set(km.delete_comment, function() comments.delete_at_cursor() end, "Delete comment")
     set(km.edit_comment, function() comments.edit_at_cursor() end, "Edit comment")

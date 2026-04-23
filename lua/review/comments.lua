@@ -16,7 +16,7 @@ local function capture_source(start_line, end_line)
   return vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
 end
 
----@param initial_type? "note"|"suggestion"|"issue"|"praise"
+---@param initial_type? string CommentType id
 function M.add_at_cursor(initial_type)
   local file, line, side = hooks.get_cursor_position()
   if not file or not line then
@@ -48,7 +48,7 @@ function M.add_with_menu()
   M.add_at_cursor()
 end
 
----@param initial_type? "note"|"suggestion"|"issue"|"praise"
+---@param initial_type? string CommentType id
 function M.file_comment(initial_type)
   local file = hooks.get_cursor_position()
   if not file then
@@ -80,7 +80,7 @@ function M.file_comment(initial_type)
   end
 end
 
----@param initial_type? "note"|"suggestion"|"issue"|"praise"
+---@param initial_type? string CommentType id
 function M.add_for_range(initial_type)
   local file, start_line, end_line, side = hooks.get_visual_range()
   if not file or not start_line or not end_line then
@@ -201,7 +201,7 @@ function M.goto_prev()
 end
 
 function M.list()
-  local config = require("review.config").get()
+  local config = require("review.config")
   local all_comments = store.get_all()
 
   if #all_comments == 0 then
@@ -212,7 +212,7 @@ function M.list()
   -- Build display items
   local items = {}
   for _, comment in ipairs(all_comments) do
-    local type_info = config.comment_types[comment.type]
+    local type_info = config.get_type(comment.type)
     local icon = type_info and type_info.icon or "●"
     local name = type_info and type_info.name or comment.type
     local location

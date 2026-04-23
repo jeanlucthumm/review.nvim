@@ -112,8 +112,8 @@ describe("review integration", function()
     it("each comment type has correct highlight group", function()
       local cfg = config.get()
 
-      for type_name, type_info in pairs(cfg.comment_types) do
-        store.add("test_file.lua", 3, type_name, "Test " .. type_name)
+      for _, type_info in ipairs(cfg.comment_types) do
+        store.add("test_file.lua", 3, type_info.id, "Test " .. type_info.id)
         marks.render_for_buffer(bufnr)
 
         local ns_id = vim.api.nvim_create_namespace("review")

@@ -1,23 +1,23 @@
 local M = {}
 
 ---@class ReviewConfig
----@field comment_types table<string, CommentType>
+---@field comment_types CommentType[]
 ---@field keymaps ReviewKeymaps
 ---@field codediff ReviewCodediffConfig
 
 ---@class CommentType
----@field key string
----@field name string
+---@field id string unique identifier stored on comments
+---@field key string single-char keymap suffix (`<localleader>c<key>`)
+---@field name string display name
 ---@field icon string
----@field hl string
----@field line_hl string
+---@field description string one-line purpose, rendered in the export preamble
+---@field hl string highlight group name for virt text / sign
+---@field hl_link string highlight group that `hl` links to by default
+---@field line_hl string highlight group name for line background
+---@field line_bg string line background color
 
 ---@class ReviewKeymaps
 ---@field add_comment string|false
----@field add_note string|false
----@field add_suggestion string|false
----@field add_issue string|false
----@field add_praise string|false
 ---@field delete_comment string|false
 ---@field edit_comment string|false
 ---@field next_comment string|false
@@ -47,18 +47,35 @@ local M = {}
 ---@type ReviewConfig
 M.defaults = {
   comment_types = {
-    note = { key = "n", name = "Note", icon = "📝", hl = "ReviewNote", line_hl = "ReviewNoteLine" },
-    suggestion = { key = "s", name = "Suggestion", icon = "💡", hl = "ReviewSuggestion", line_hl = "ReviewSuggestionLine" },
-    issue = { key = "i", name = "Issue", icon = "⚠️", hl = "ReviewIssue", line_hl = "ReviewIssueLine" },
-    praise = { key = "p", name = "Praise", icon = "✨", hl = "ReviewPraise", line_hl = "ReviewPraiseLine" },
+    {
+      id = "note", key = "n", name = "Note", icon = "📝",
+      description = "observations",
+      hl = "ReviewNote", hl_link = "DiagnosticInfo",
+      line_hl = "ReviewNoteLine", line_bg = "#0d1f28",
+    },
+    {
+      id = "suggestion", key = "s", name = "Suggestion", icon = "💡",
+      description = "improvements",
+      hl = "ReviewSuggestion", hl_link = "DiagnosticHint",
+      line_hl = "ReviewSuggestionLine", line_bg = "#152015",
+    },
+    {
+      id = "issue", key = "i", name = "Issue", icon = "⚠️",
+      description = "problems to fix",
+      hl = "ReviewIssue", hl_link = "DiagnosticWarn",
+      line_hl = "ReviewIssueLine", line_bg = "#28250d",
+    },
+    {
+      id = "praise", key = "p", name = "Praise", icon = "✨",
+      description = "positive feedback",
+      hl = "ReviewPraise", hl_link = "DiagnosticOk",
+      line_hl = "ReviewPraiseLine", line_bg = "#15152a",
+    },
   },
   keymaps = {
-    -- Edit mode (leader-based)
+    -- Edit mode (leader-based). Per-type add keymaps are derived from
+    -- `comment_types[i].key` as `<localleader>c<key>`.
     add_comment = "<localleader>cc",
-    add_note = "<localleader>cn",
-    add_suggestion = "<localleader>cs",
-    add_issue = "<localleader>ci",
-    add_praise = "<localleader>cp",
     add_file_comment = "<localleader>cf",
     delete_comment = "<localleader>cd",
     edit_comment = "<localleader>ce",
@@ -103,6 +120,18 @@ end
 ---@return ReviewConfig
 function M.get()
   return M.config
+end
+
+---Look up a comment type by id.
+---@param id string
+---@return CommentType|nil
+function M.get_type(id)
+  for _, t in ipairs(M.config.comment_types) do
+    if t.id == id then
+      return t
+    end
+  end
+  return nil
 end
 
 return M
