@@ -28,17 +28,7 @@ function M.open(initial_type, initial_text, callback)
   end
 
   local cfg = config.get()
-  local current_type_idx = 1
-
-  -- Find initial type index
-  if initial_type then
-    for i, t in ipairs(cfg.comment_types) do
-      if t.id == initial_type then
-        current_type_idx = i
-        break
-      end
-    end
-  end
+  local current_type_idx = (initial_type and config.get_type_index(initial_type)) or 1
 
   -- Type selector popup (top)
   local type_popup = Popup({

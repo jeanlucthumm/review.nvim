@@ -128,4 +128,16 @@ function M.get_type(id)
   return nil
 end
 
+---Look up a comment type's position (1-indexed) in `comment_types` by id.
+---@param id string
+---@return number|nil
+function M.get_type_index(id)
+  for i, t in ipairs(M.config.comment_types) do
+    if t.id == id then
+      return i
+    end
+  end
+  return nil
+end
+
 return M
