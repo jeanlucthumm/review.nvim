@@ -9,6 +9,13 @@ local function notify(msg, level)
   vim.notify(msg, level, { title = "review.nvim" })
 end
 
+---@param start_line number 1-indexed inclusive
+---@param end_line number 1-indexed inclusive
+---@return string[]
+local function capture_source(start_line, end_line)
+  return vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+end
+
 ---@param initial_type? "note"|"suggestion"|"issue"|"praise"
 function M.add_at_cursor(initial_type)
   local file, line, side = hooks.get_cursor_position()
@@ -23,9 +30,11 @@ function M.add_at_cursor(initial_type)
     return
   end
 
+  local source_lines = capture_source(line, line)
+
   popup.open(initial_type or "note", nil, function(comment_type, text)
     if comment_type and text then
-      store.add(file, line, comment_type, text, nil, side)
+      store.add(file, line, comment_type, text, nil, side, source_lines)
       vim.schedule(function()
         marks.refresh()
       end)
@@ -85,9 +94,11 @@ function M.add_for_range(initial_type)
     return
   end
 
+  local source_lines = capture_source(start_line, end_line)
+
   popup.open(initial_type or "note", nil, function(comment_type, text)
     if comment_type and text then
-      store.add(file, start_line, comment_type, text, end_line, side)
+      store.add(file, start_line, comment_type, text, end_line, side, source_lines)
       vim.schedule(function()
         marks.refresh()
       end)
