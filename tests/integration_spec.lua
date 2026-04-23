@@ -53,8 +53,8 @@ describe("review integration", function()
 
     it("renders multiple comments on different lines", function()
       store.add("test_file.lua", 3, "issue", "Issue here")
-      store.add("test_file.lua", 7, "suggestion", "Consider refactoring")
-      store.add("test_file.lua", 4, "praise", "Nice and clean")
+      store.add("test_file.lua", 7, "question", "Consider refactoring?")
+      store.add("test_file.lua", 4, "note", "Nice and clean")
 
       marks.render_for_buffer(bufnr)
 
@@ -131,7 +131,7 @@ describe("review integration", function()
   describe("export integration", function()
     it("exports comments from buffer to markdown", function()
       store.add("test_file.lua", 3, "issue", "Missing error handling")
-      store.add("test_file.lua", 7, "suggestion", "Use local variable")
+      store.add("test_file.lua", 7, "note", "Use local variable")
 
       local export = require("review.export")
       local md = export.generate_markdown()

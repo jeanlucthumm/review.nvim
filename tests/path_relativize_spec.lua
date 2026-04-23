@@ -62,7 +62,7 @@ describe("path relativization for comment rendering", function()
 
     it("renders on both sides with git-root-relative paths", function()
       store.add("backend/ngen/src/app.lua", 3, "note", "Old side note", nil, "old")
-      store.add("backend/ngen/src/app.lua", 3, "suggestion", "New side suggestion", nil, "new")
+      store.add("backend/ngen/src/app.lua", 3, "question", "New side question", nil, "new")
 
       local orig_buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_lines(orig_buf, 0, -1, false, {
@@ -110,7 +110,7 @@ describe("path relativization for comment rendering", function()
       local path = "backend/ngen/lib/utils.ex"
       store.add(path, 1, "note", "First")
       store.add(path, 3, "issue", "Second")
-      store.add(path, 5, "suggestion", "Third")
+      store.add(path, 5, "question", "Third")
 
       marks.render_for_buffer(bufnr, nil, path)
 

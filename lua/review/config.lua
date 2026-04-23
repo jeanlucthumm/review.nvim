@@ -49,27 +49,21 @@ M.defaults = {
   comment_types = {
     {
       id = "note", key = "n", name = "Note", icon = "📝",
-      description = "observations",
+      description = "general feedback; you have leeway and may include suggested changes",
       hl = "ReviewNote", hl_link = "DiagnosticInfo",
       line_hl = "ReviewNoteLine", line_bg = "#0d1f28",
     },
     {
-      id = "suggestion", key = "s", name = "Suggestion", icon = "💡",
-      description = "improvements",
-      hl = "ReviewSuggestion", hl_link = "DiagnosticHint",
-      line_hl = "ReviewSuggestionLine", line_bg = "#152015",
-    },
-    {
       id = "issue", key = "i", name = "Issue", icon = "⚠️",
-      description = "problems to fix",
+      description = "definitive, must be addressed",
       hl = "ReviewIssue", hl_link = "DiagnosticWarn",
       line_hl = "ReviewIssueLine", line_bg = "#28250d",
     },
     {
-      id = "praise", key = "p", name = "Praise", icon = "✨",
-      description = "positive feedback",
-      hl = "ReviewPraise", hl_link = "DiagnosticOk",
-      line_hl = "ReviewPraiseLine", line_bg = "#15152a",
+      id = "question", key = "q", name = "Question", icon = "❓",
+      description = "clarification request; answer inline, do not change code",
+      hl = "ReviewQuestion", hl_link = "DiagnosticHint",
+      line_hl = "ReviewQuestionLine", line_bg = "#15152a",
     },
   },
   keymaps = {

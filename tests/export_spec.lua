@@ -24,11 +24,11 @@ describe("review.export", function()
     it("formats comments as numbered list", function()
       store.add("a.lua", 1, "note", "Note A")
       store.add("b.lua", 1, "issue", "Issue B")
-      store.add("a.lua", 5, "suggestion", "Suggestion A")
+      store.add("a.lua", 5, "question", "Question A")
 
       local md = export.generate_markdown()
       assert.matches("1%. %*%*%[NOTE%]%*%*", md)
-      assert.matches("2%. %*%*%[SUGGESTION%]%*%*", md)
+      assert.matches("2%. %*%*%[QUESTION%]%*%*", md)
       assert.matches("3%. %*%*%[ISSUE%]%*%*", md)
     end)
 
