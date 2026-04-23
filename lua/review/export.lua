@@ -18,8 +18,6 @@ function M.generate_markdown()
   local lines = {}
 
   -- Header
-  table.insert(lines, "I reviewed your code and have the following comments. Please address them.")
-  table.insert(lines, "")
   local type_parts = {}
   for _, t in ipairs(config.get().comment_types) do
     table.insert(type_parts, string.format("%s (%s)", string.upper(t.id), t.description))
