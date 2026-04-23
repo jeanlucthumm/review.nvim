@@ -53,5 +53,31 @@ describe("review.export", function()
       assert.matches("src/main.lua:10", md)
       assert.not_matches("~10", md)
     end)
+
+    it("inlines single source line with backticks", function()
+      store.add("src/main.lua", 10, "issue", "Fix this", nil, "new", { "local x = 1" })
+
+      local md = export.generate_markdown()
+      assert.matches("`src/main.lua:10` `local x = 1` %- Fix this", md)
+    end)
+
+    it("renders multi-line source as blockquote continuation", function()
+      store.add("src/main.lua", 10, "issue", "Fix this", 12, "new",
+        { "line one", "line two", "line three" })
+
+      local md = export.generate_markdown()
+      assert.matches("`src/main.lua:10%-12` %- Fix this", md)
+      assert.matches("   > line one", md)
+      assert.matches("   > line two", md)
+      assert.matches("   > line three", md)
+    end)
+
+    it("falls back to legacy format when source_lines missing", function()
+      store.add("src/main.lua", 10, "issue", "No source")
+
+      local md = export.generate_markdown()
+      assert.matches("`src/main.lua:10` %- No source", md)
+      assert.not_matches(">", md)
+    end)
   end)
 end)

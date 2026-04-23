@@ -41,7 +41,18 @@ function M.generate_markdown()
     else
       location = string.format("%s:%d", comment.file, comment.line)
     end
-    table.insert(lines, string.format("%d. **[%s]** `%s` - %s", i, type_name, location, comment.text))
+
+    local source = comment.source_lines
+    if source and #source == 1 then
+      table.insert(lines, string.format("%d. **[%s]** `%s` `%s` - %s", i, type_name, location, source[1], comment.text))
+    elseif source and #source > 1 then
+      table.insert(lines, string.format("%d. **[%s]** `%s` - %s", i, type_name, location, comment.text))
+      for _, src_line in ipairs(source) do
+        table.insert(lines, "   > " .. src_line)
+      end
+    else
+      table.insert(lines, string.format("%d. **[%s]** `%s` - %s", i, type_name, location, comment.text))
+    end
   end
 
   return table.concat(lines, "\n")
