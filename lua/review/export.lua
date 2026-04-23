@@ -1,6 +1,7 @@
 local M = {}
 
 local store = require("review.store")
+local config = require("review.config")
 
 local function notify(msg, level)
   vim.notify(msg, level, { title = "review.nvim" })
@@ -19,7 +20,11 @@ function M.generate_markdown()
   -- Header
   table.insert(lines, "I reviewed your code and have the following comments. Please address them.")
   table.insert(lines, "")
-  table.insert(lines, "Comment types: ISSUE (problems to fix), SUGGESTION (improvements), NOTE (observations), PRAISE (positive feedback)")
+  local type_parts = {}
+  for _, t in ipairs(config.get().comment_types) do
+    table.insert(type_parts, string.format("%s (%s)", string.upper(t.id), t.description))
+  end
+  table.insert(lines, "Comment types: " .. table.concat(type_parts, ", "))
   table.insert(lines, "Lines prefixed with ~ refer to the old (left) side of the diff.")
   table.insert(lines, "")
 
