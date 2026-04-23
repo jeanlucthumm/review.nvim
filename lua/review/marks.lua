@@ -7,16 +7,65 @@ local normalize_path = require("review.utils").normalize_path
 local ns_id = vim.api.nvim_create_namespace("review")
 local ns_padding = vim.api.nvim_create_namespace("review_padding")
 
+---Word-wrap a single paragraph to fit within max_width display cells.
+---Long single words that exceed max_width are left as-is (overflow).
+---@param text string
+---@param max_width number
+---@return string[]
+local function wrap_paragraph(text, max_width)
+  local lines = {}
+  local current = ""
+  for word in text:gmatch("%S+") do
+    if current == "" then
+      current = word
+    elseif vim.fn.strdisplaywidth(current .. " " .. word) <= max_width then
+      current = current .. " " .. word
+    else
+      table.insert(lines, current)
+      current = word
+    end
+  end
+  if current ~= "" then
+    table.insert(lines, current)
+  end
+  if #lines == 0 then
+    table.insert(lines, "")
+  end
+  return lines
+end
+
+---Determine how wide the content area inside the comment box can be,
+---based on the first window currently displaying the buffer.
+---@param bufnr number
+---@return number
+local function get_content_wrap_width(bufnr)
+  local win_width = 80
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(win) == bufnr then
+      win_width = vim.api.nvim_win_get_width(win)
+      break
+    end
+  end
+  -- Reserve 2 for "│ ", 2 for " │", and ~4 for sign/number column safety.
+  return math.max(20, win_width - 8)
+end
+
 ---@param text string
 ---@param type_name string
 ---@param hl string
+---@param max_width number content wrap width (inside the box borders)
 ---@return table[] virt_lines
-local function build_comment_box(text, type_name, hl)
+local function build_comment_box(text, type_name, hl, max_width)
   local virt_lines = {}
-  local text_lines = vim.split(text, "\n")
+  local wrapped_lines = {}
+  for _, raw in ipairs(vim.split(text, "\n")) do
+    for _, wl in ipairs(wrap_paragraph(raw, max_width)) do
+      table.insert(wrapped_lines, wl)
+    end
+  end
 
   local max_text_width = 0
-  for _, text_line in ipairs(text_lines) do
+  for _, text_line in ipairs(wrapped_lines) do
     max_text_width = math.max(max_text_width, vim.fn.strdisplaywidth(text_line))
   end
   local header_text = string.format("[%s]", string.upper(type_name))
@@ -25,7 +74,7 @@ local function build_comment_box(text, type_name, hl)
   local top_dashes = content_width - vim.fn.strdisplaywidth(header_text) + 1
   table.insert(virt_lines, { { "╭─" .. header_text .. string.rep("─", top_dashes) .. "╮", hl } })
 
-  for _, text_line in ipairs(text_lines) do
+  for _, text_line in ipairs(wrapped_lines) do
     local padding = content_width - vim.fn.strdisplaywidth(text_line)
     table.insert(virt_lines, { { "│ " .. text_line .. string.rep(" ", padding) .. " │", hl } })
   end
@@ -70,6 +119,7 @@ function M.render_for_buffer(bufnr, side, file_override)
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
   local cfg = config.get()
+  local content_wrap_width = get_content_wrap_width(bufnr)
 
   for _, comment in ipairs(comments) do
     local type_info = config.get_type(comment.type)
@@ -77,7 +127,7 @@ function M.render_for_buffer(bufnr, side, file_override)
     local hl = type_info and type_info.hl or "ReviewSign"
     local line_hl = type_info and type_info.line_hl
     local name = type_info and type_info.name or comment.type
-    local virt_lines = build_comment_box(comment.text, name, hl)
+    local virt_lines = build_comment_box(comment.text, name, hl, content_wrap_width)
 
     if comment.line == 0 then
       pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, 0, 0, {
@@ -241,5 +291,10 @@ function M.clear_all()
     end
   end
 end
+
+M._test = {
+  wrap_paragraph = wrap_paragraph,
+  build_comment_box = build_comment_box,
+}
 
 return M
