@@ -10,6 +10,7 @@ local storage = require("review.storage")
 ---@field side? "old"|"new"
 ---@field type "note"|"suggestion"|"issue"|"praise"
 ---@field text string
+---@field source_lines? string[]
 ---@field created_at number
 
 ---@type table<string, Comment[]>
@@ -57,8 +58,9 @@ end
 ---@param text string
 ---@param line_end? number
 ---@param side? "old"|"new"
+---@param source_lines? string[]
 ---@return Comment
-function M.add(file, line, type, text, line_end, side)
+function M.add(file, line, type, text, line_end, side, source_lines)
   if not M.comments[file] then
     M.comments[file] = {}
   end
@@ -71,6 +73,7 @@ function M.add(file, line, type, text, line_end, side)
     side = side or "new",
     type = type,
     text = text,
+    source_lines = (source_lines and #source_lines > 0) and source_lines or nil,
     created_at = os.time(),
   }
 

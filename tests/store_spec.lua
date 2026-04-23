@@ -93,6 +93,29 @@ describe("review.store", function()
     end)
   end)
 
+  describe("source_lines", function()
+    it("stores source_lines when provided", function()
+      local c = store.add("file.lua", 10, "note", "text", nil, "new", { "local x = 1" })
+      assert.same({ "local x = 1" }, c.source_lines)
+    end)
+
+    it("stores nil when omitted", function()
+      local c = store.add("file.lua", 10, "note", "text")
+      assert.is_nil(c.source_lines)
+    end)
+
+    it("stores nil when empty array passed", function()
+      local c = store.add("file.lua", 10, "note", "text", nil, "new", {})
+      assert.is_nil(c.source_lines)
+    end)
+
+    it("preserves multi-line source", function()
+      local src = { "line a", "line b", "line c" }
+      local c = store.add("file.lua", 5, "issue", "text", 7, "new", src)
+      assert.same(src, c.source_lines)
+    end)
+  end)
+
   describe("side awareness", function()
     it("stores side field on add", function()
       local c = store.add("file.lua", 10, "note", "old side", nil, "old")
