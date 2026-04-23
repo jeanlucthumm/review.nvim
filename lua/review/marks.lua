@@ -34,18 +34,26 @@ local function wrap_paragraph(text, max_width)
   return lines
 end
 
+---Return all valid windows currently displaying the given buffer.
+---@param bufnr number
+---@return number[]
+local function wins_for_buf(bufnr)
+  local wins = {}
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == bufnr then
+      table.insert(wins, win)
+    end
+  end
+  return wins
+end
+
 ---Determine how wide the content area inside the comment box can be,
 ---based on the first window currently displaying the buffer.
 ---@param bufnr number
 ---@return number
 local function get_content_wrap_width(bufnr)
-  local win_width = 80
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    if vim.api.nvim_win_get_buf(win) == bufnr then
-      win_width = vim.api.nvim_win_get_width(win)
-      break
-    end
-  end
+  local first_win = wins_for_buf(bufnr)[1]
+  local win_width = first_win and vim.api.nvim_win_get_width(first_win) or 80
   -- Reserve 2 for "│ ", 2 for " │", and ~4 for sign/number column safety.
   return math.max(20, win_width - 8)
 end
@@ -138,16 +146,14 @@ function M.render_for_buffer(bufnr, side, file_override)
       })
       -- Scroll windows to reveal virt_lines above row 0
       local virt_line_count = #virt_lines
-      for _, win in ipairs(vim.api.nvim_list_wins()) do
-        if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == bufnr then
-          vim.api.nvim_win_call(win, function()
-            local view = vim.fn.winsaveview()
-            if view.topline <= 1 then
-              view.topfill = virt_line_count
-              vim.fn.winrestview(view)
-            end
-          end)
-        end
+      for _, win in ipairs(wins_for_buf(bufnr)) do
+        vim.api.nvim_win_call(win, function()
+          local view = vim.fn.winsaveview()
+          if view.topline <= 1 then
+            view.topfill = virt_line_count
+            vim.fn.winrestview(view)
+          end
+        end)
       end
     else
       local line_start = comment.line - 1
