@@ -20,7 +20,7 @@ Changes over [upstream](https://github.com/georgeguimaraes/review.nvim):
 
 ## Features
 
-- Add comments to specific lines in diff view (Note, Suggestion, Issue, Praise)
+- Add comments to specific lines in diff view (Note, Issue, Question)
 - Multi-line comment support with box-style virtual text display
 - Comments displayed as signs, line highlights, and virtual text
 - Comments persist per branch (stored in Neovim's XDG data directory: `~/.local/share/nvim/review/`)
@@ -44,8 +44,7 @@ Using lazy.nvim:
 
 ```lua
 {
-  "georgeguimaraes/review.nvim",
-  version = "v*",
+  "jeanlucthumm/review.nvim",
   dependencies = {
     "esmuellert/codediff.nvim",
     "MunifTanjim/nui.nvim",
@@ -80,7 +79,7 @@ Using lazy.nvim:
 
 Open a review with `:Review` to see your staged and unstaged changes in a side-by-side diff, or `:Review commits` if you want to pick specific commits to review. The diff opens in a new tab with a file panel on the left.
 
-Navigate between files with `<Tab>` and `<S-Tab>`. Toggle the file panel with `f`. Press `t` to toggle between side-by-side and inline layout. Switch between the old (left) and new (right) panes with `<C-w>h` and `<C-w>l`. When you spot something worth commenting on, press `i` on the line and pick a comment type from the menu (note, suggestion, issue, praise). The comment renders inline as a box below the line with a sign icon in the gutter.
+Navigate between files with `<Tab>` and `<S-Tab>`. Toggle the file panel with `f`. Press `t` to toggle between side-by-side and inline layout. Switch between the old (left) and new (right) panes with `<C-w>h` and `<C-w>l`. When you spot something worth commenting on, press `i` on the line and pick a comment type from the menu (note, issue, question). The comment renders inline as a box below the line with a sign icon in the gutter.
 
 For multi-line comments, visually select the range first then press `i`. For file-level comments that apply to the whole file, press `F`. Comments on the left (old) side of the diff only show on that side, and same for the right (new) side.
 
@@ -89,8 +88,8 @@ Use `]n` and `[n` to jump between comments, `e` to edit one, `d` to delete. Pres
 When you're done, press `q` to close the review. This automatically copies all your comments to the clipboard as structured markdown and shows a preview. Paste it into Claude Code, sidekick.nvim (`S`), or wherever you're chatting with an AI. The format looks like this:
 
 ```
-1. **[ISSUE]** `src/api.ts:23` - This endpoint doesn't handle errors
-2. **[SUGGESTION]** `src/utils.ts:~10` - The old implementation was cleaner
+1. **[ISSUE]** `src/api.ts:23` `const response = fetch(url);` - This endpoint doesn't handle errors
+2. **[QUESTION]** `src/utils.ts:~10` `return legacy(value);` - Is this still used anywhere?
 ```
 
 Lines prefixed with `~` refer to the old (left) side of the diff. Comments persist per branch, so you can close Neovim and come back to the same review later. Sessions auto-expire after 7 days.
@@ -121,7 +120,8 @@ Lines prefixed with `~` refer to the old (left) side of the diff. Comments persi
 | Key | Action |
 |-----|--------|
 | `<localleader>cc` | Add comment (pick type from menu) |
-| `<localleader>cn/cs/ci/cp` | Add Note/Suggestion/Issue/Praise |
+| `<localleader>c<key>` | Add specific comment type (`<key>` is each type's configured `key`; defaults: `cn` note, `ci` issue, `cq` question) |
+| `<localleader>cf` | File-level comment |
 | `<localleader>cd` | Delete comment |
 | `<localleader>ce` | Edit comment |
 
@@ -138,13 +138,13 @@ Lines prefixed with `~` refer to the old (left) side of the diff. Comments persi
 All keymaps can be set to `false` to disable them.
 
 **Keymap options**
+
+Per-type add keymaps (`<localleader>cn`, `<localleader>ci`, `<localleader>cq` by default) are derived from each entry's `key` field in `comment_types` — they don't appear here.
+
 | Option | Default | Action |
 |--------|---------|--------|
 | `add_comment` | `<localleader>cc` | Add comment, pick type (edit mode) |
-| `add_note` | `<localleader>cn` | Add note (edit mode) |
-| `add_suggestion` | `<localleader>cs` | Add suggestion (edit mode) |
-| `add_issue` | `<localleader>ci` | Add issue (edit mode) |
-| `add_praise` | `<localleader>cp` | Add praise (edit mode) |
+| `add_file_comment` | `<localleader>cf` | Add file-level comment (edit mode) |
 | `delete_comment` | `<localleader>cd` | Delete comment (edit mode) |
 | `edit_comment` | `<localleader>ce` | Edit comment (edit mode) |
 | `next_comment` | `]n` | Next comment |
@@ -161,23 +161,37 @@ All keymaps can be set to `false` to disable them.
 | `readonly_add` | `i` | Add comment (readonly mode) |
 | `readonly_delete` | `d` | Delete comment (readonly mode) |
 | `readonly_edit` | `e` | Edit comment (readonly mode) |
+| `readonly_add_file` | `F` | File-level comment (readonly mode) |
+| `show_help` | `?` | Show keymap help |
 | `popup_submit` | `<C-s>` | Submit comment (popup, insert & normal) |
 | `popup_cancel` | `q` | Cancel comment (popup, normal mode) |
 | `popup_cycle_type` | `<Tab>` | Cycle comment type (popup) |
 
+`comment_types` is an ordered array — the order determines both how the type picker cycles and how the legend appears in the exported markdown. Each entry needs `id`, `key`, `name`, `icon`, `description`, `hl`, `hl_link`, `line_hl`, and `line_bg`.
+
 ```lua
 require("review").setup({
   comment_types = {
-    note = { key = "n", name = "Note", icon = "📝", hl = "ReviewNote" },
-    suggestion = { key = "s", name = "Suggestion", icon = "💡", hl = "ReviewSuggestion" },
-    issue = { key = "i", name = "Issue", icon = "⚠️", hl = "ReviewIssue" },
-    praise = { key = "p", name = "Praise", icon = "✨", hl = "ReviewPraise" },
+    {
+      id = "note", key = "n", name = "Note", icon = "📝",
+      description = "general feedback; you have leeway and may include suggested changes",
+      hl = "ReviewNote", hl_link = "DiagnosticInfo",
+      line_hl = "ReviewNoteLine", line_bg = "#0d1f28",
+    },
+    {
+      id = "issue", key = "i", name = "Issue", icon = "⚠️",
+      description = "definitive, must be addressed",
+      hl = "ReviewIssue", hl_link = "DiagnosticWarn",
+      line_hl = "ReviewIssueLine", line_bg = "#28250d",
+    },
+    {
+      id = "question", key = "q", name = "Question", icon = "❓",
+      description = "clarification request; answer inline, do not change code",
+      hl = "ReviewQuestion", hl_link = "DiagnosticHint",
+      line_hl = "ReviewQuestionLine", line_bg = "#15152a",
+    },
   },
   keymaps = {
-    add_note = "<localleader>cn",
-    add_suggestion = "<localleader>cs",
-    add_issue = "<localleader>ci",
-    add_praise = "<localleader>cp",
     delete_comment = "<localleader>cd",
     edit_comment = "<localleader>ce",
     next_comment = "]n",
@@ -192,16 +206,19 @@ require("review").setup({
 
 ## Export Format
 
-Comments are exported as Markdown optimized for AI consumption:
+Comments are exported as Markdown optimized for AI consumption. Each entry carries the actual source line(s) being commented on — inline in backticks for a single line, as a blockquote block for a range — so the LLM anchors on real code instead of bare line numbers.
 
 ```markdown
-I reviewed your code and have the following comments. Please address them.
+Comment types: NOTE (general feedback; you have leeway and may include suggested changes), ISSUE (definitive, must be addressed), QUESTION (clarification request; answer inline, do not change code)
+Lines prefixed with ~ refer to the old (left) side of the diff.
 
-Comment types: ISSUE (problems to fix), SUGGESTION (improvements), NOTE (observations), PRAISE (positive feedback)
-
-1. **[ISSUE]** `src/components/Button.tsx:23` - Wrapping onClick creates a new function every render
-2. **[SUGGESTION]** `src/utils/api.ts:~45` - The old implementation was cleaner
-3. **[PRAISE]** `src/hooks/useAuth.ts:12-18` - Clean implementation of the auth flow
+1. **[ISSUE]** `src/components/Button.tsx:23` `<button onClick={() => doThing()}>` - Wrapping onClick creates a new function every render
+2. **[QUESTION]** `src/utils/api.ts:~45` `return legacyTransform(payload);` - Is this branch still reachable?
+3. **[NOTE]** `src/hooks/useAuth.ts:12-18` - Consider splitting this into smaller hooks
+   > function useAuth() {
+   >   const [user, setUser] = useState(null);
+   >   // ...
+   > }
 ```
 
 Lines prefixed with `~` (e.g. `:~45`) refer to the old (left) side of the diff. Range comments use `start-end` notation.

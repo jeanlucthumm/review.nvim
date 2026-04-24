@@ -19,15 +19,15 @@ CONTENTS                                                     *review-contents*
 1. OVERVIEW                                                  *review-overview*
 
 review.nvim adds code review annotations on top of |codediff.nvim|. You can
-leave comments (notes, suggestions, issues, praise) on specific lines in a
-diff view, then export them to clipboard or send them to sidekick.nvim for AI
-chat.
+leave comments (notes, issues, questions) on specific lines in a diff view,
+then export them to clipboard or send them to sidekick.nvim for AI chat.
 
 Features:
 - Line and range comments with box-style virtual text
-- Four comment types: Note, Suggestion, Issue, Praise
+- Three comment types by default: Note, Issue, Question (extensible via
+  |review-config|)
+- Exports carry the actual source line(s) being commented on
 - Comments persist per branch across sessions
-- Export format optimized for AI conversations
 - Commit picker to review specific revision ranges
 - Readonly and edit modes with separate keymap sets
 
@@ -85,36 +85,32 @@ All commands use the `:Review` prefix.
 
 Call `require("review").setup(opts)` with any of the following options.
 All fields are optional; defaults are shown.
+
+`comment_types` is an ordered array. Order determines the type picker
+cycle order and the order of entries in the exported legend.
+
 >lua
     require("review").setup({
       comment_types = {
-        note = {
-          key = "n",
-          name = "Note",
-          icon = "📝",
-          hl = "ReviewNote",
-          line_hl = "ReviewNoteLine",
+        {
+          id = "note", key = "n", name = "Note", icon = "📝",
+          description =
+            "general feedback; you have leeway and may include suggested changes",
+          hl = "ReviewNote", hl_link = "DiagnosticInfo",
+          line_hl = "ReviewNoteLine", line_bg = "#0d1f28",
         },
-        suggestion = {
-          key = "s",
-          name = "Suggestion",
-          icon = "💡",
-          hl = "ReviewSuggestion",
-          line_hl = "ReviewSuggestionLine",
+        {
+          id = "issue", key = "i", name = "Issue", icon = "⚠️",
+          description = "definitive, must be addressed",
+          hl = "ReviewIssue", hl_link = "DiagnosticWarn",
+          line_hl = "ReviewIssueLine", line_bg = "#28250d",
         },
-        issue = {
-          key = "i",
-          name = "Issue",
-          icon = "⚠️",
-          hl = "ReviewIssue",
-          line_hl = "ReviewIssueLine",
-        },
-        praise = {
-          key = "p",
-          name = "Praise",
-          icon = "✨",
-          hl = "ReviewPraise",
-          line_hl = "ReviewPraiseLine",
+        {
+          id = "question", key = "q", name = "Question", icon = "❓",
+          description =
+            "clarification request; answer inline, do not change code",
+          hl = "ReviewQuestion", hl_link = "DiagnosticHint",
+          line_hl = "ReviewQuestionLine", line_bg = "#15152a",
         },
       },
 
@@ -125,6 +121,9 @@ All fields are optional; defaults are shown.
       keymaps = { ... },  -- see |review-keymaps|
     })
 <
+
+Per-type add keymaps (`<localleader>c<key>`) are derived from each
+entry's `key` field and do not appear in `opts.keymaps`.
 
                                                      *review-config-codediff*
 codediff.readonly ~
@@ -152,12 +151,11 @@ EDIT MODE                                               *review-keymaps-edit*
 
 These keymaps are active when `codediff.readonly = false`:
 
-    Key           Description ~
-    `<localleader>cc`    Add comment (pick type)              |n, x|
-    `<localleader>cn`    Add note                            |n, x|
-    `<localleader>cs`    Add suggestion                      |n, x|
-    `<localleader>ci`    Add issue                           |n, x|
-    `<localleader>cp`    Add praise                          |n, x|
+    Key                  Description ~
+    `<localleader>cc`    Add comment (pick type)             |n, x|
+    `<localleader>c<key>` Add specific type; `<key>` comes  |n, x|
+                         from each `comment_types` entry
+                         (defaults: `cn`, `ci`, `cq`)
     `<localleader>cf`    Add file-level comment              |n|
     `<localleader>ce`    Edit comment at cursor              |n|
     `<localleader>cd`    Delete comment at cursor            |n|
@@ -198,32 +196,47 @@ These keymaps are active inside the comment popup window:
 ==============================================================================
 6. HIGHLIGHT GROUPS                                      *review-highlights*
 
-These highlight groups are defined with default links. Override them after
-calling setup() or in a |ColorScheme| autocommand.
+Per-type highlight groups are driven from `comment_types[]`. The default
+entries produce the groups below; additional types added by the user
+produce their own groups (named by each entry's `hl` and `line_hl`
+fields) and link to the `hl_link` / use the `line_bg` the user provides.
+Override any group after calling setup() or in a |ColorScheme| autocommand.
 
-  Group                   Default link      Usage ~
-  `ReviewNote`              DiagnosticInfo    Note virtual text and sign
-  `ReviewSuggestion`        DiagnosticHint    Suggestion virtual text and sign
-  `ReviewIssue`             DiagnosticWarn    Issue virtual text and sign
-  `ReviewPraise`            DiagnosticOk      Praise virtual text and sign
-  `ReviewSign`              Comment           Sign column marker (●)
-  `ReviewVirtText`          Comment           General virtual text
-  `ReviewPickerHash`        Identifier        Commit hash in picker
-  `ReviewPickerMeta`        Comment           Author/date in picker
-  `ReviewPickerSelected`    String            Selected commit marker
+  Group                  Default link      Usage ~
+  `ReviewNote`           DiagnosticInfo    Note virtual text and sign
+  `ReviewIssue`          DiagnosticWarn    Issue virtual text and sign
+  `ReviewQuestion`       DiagnosticHint    Question virtual text and sign
+  `ReviewSign`           Comment           Sign column marker (●)
+  `ReviewVirtText`       Comment           General virtual text
+  `ReviewPickerHash`     Identifier        Commit hash in picker
+  `ReviewPickerMeta`     Comment           Author/date in picker
+  `ReviewPickerSelected` String            Selected commit marker
 
-  Group                   Default bg        Usage ~
-  `ReviewNoteLine`          #0d1f28           Note line background
-  `ReviewSuggestionLine`    #152015           Suggestion line background
-  `ReviewIssueLine`         #28250d           Issue line background
-  `ReviewPraiseLine`        #15152a           Praise line background
+  Group                  Default bg        Usage ~
+  `ReviewNoteLine`       #0d1f28           Note line background
+  `ReviewIssueLine`      #28250d           Issue line background
+  `ReviewQuestionLine`   #15152a           Question line background
 
 ==============================================================================
 7. EXPORT FORMAT                                              *review-export*
 
-Comments are exported as markdown optimized for AI consumption. The format
-includes file path, line numbers, diff side (old/new), comment type, and
-surrounding code context. Use `:Review export` to preview.
+Comments are exported as markdown optimized for AI consumption. Each entry
+carries the actual source line(s) being commented on — inline in backticks
+for a single line, as a `> ` blockquote block for a range. Use
+`:Review export` to preview.
+
+Example:
+>markdown
+    Comment types: NOTE (...), ISSUE (...), QUESTION (...)
+    Lines prefixed with ~ refer to the old (left) side of the diff.
+
+    1. **[ISSUE]** `src/api.ts:23` `const r = fetch(url);` - Missing error handling
+    2. **[QUESTION]** `src/utils.ts:~45` `return legacy(x);` - Still reachable?
+    3. **[NOTE]** `src/hooks/useAuth.ts:12-15` - Consider splitting this
+       > function useAuth() {
+       >   // ...
+       > }
+<
 
 ==============================================================================
 8. STORAGE                                                   *review-storage*
