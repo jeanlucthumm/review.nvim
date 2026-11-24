@@ -20,13 +20,14 @@ CONTENTS                                                     *review-contents*
 1. OVERVIEW                                                  *review-overview*
 
 review.nvim adds code review comments to |codediff.nvim|. You add comments
-(notes, suggestions, issues and praise) to lines in a diff. Then you export
+(notes, issues and questions) to lines in a diff. Then you export
 the comments to the clipboard, or you send them to sidekick.nvim for an AI
 chat.
 
 Features:
 - Comments on a line or on a range of lines, shown as boxes of virtual text
-- Four comment types: Note, Suggestion, Issue and Praise
+- Three comment types: Note, Issue and Question, from an ordered list
+- `:Review workspace`: the working tree against a base, with LSP on the right
 - One comment store for each repository, kept across restarts
 - Notes on any file with `:Review note`, with no diff open
 - A markdown export for AI chats
@@ -74,6 +75,11 @@ All commands start with `:Review`.
                             Review a branch. This command does not open a
                             picker. When you do not give {base}, the base is
                             `branch.base` or the base that review.nvim finds.
+
+                                                           *:Review-workspace*
+:Review workspace [{rev}]   Diff {rev} (default `$REVIEW_BASE`) against the
+                            working tree. Run it in a checkout of the change
+                            under review so LSP works on the right side.
 
                                                                *:Review-close*
 :Review close               Export the comments and close the review tab.
@@ -125,39 +131,26 @@ Call `require("review").setup(opts)` with the options below. All the fields
 are optional. The example shows the default values.
 >lua
     require("review").setup({
+      -- An ordered list; a configured list replaces it. `key` makes the
+      -- `<localleader>c<key>` keymap, `description` goes in the export header.
       comment_types = {
-        note = {
-          key = "n",
-          name = "Note",
-          icon = "📝",
-          hl = "ReviewNote",
-          line_hl = "ReviewNoteLine",
-        },
-        suggestion = {
-          key = "s",
-          name = "Suggestion",
-          icon = "💡",
-          hl = "ReviewSuggestion",
-          line_hl = "ReviewSuggestionLine",
-        },
-        issue = {
-          key = "i",
-          name = "Issue",
-          icon = "⚠️",
-          hl = "ReviewIssue",
-          line_hl = "ReviewIssueLine",
-        },
-        praise = {
-          key = "p",
-          name = "Praise",
-          icon = "✨",
-          hl = "ReviewPraise",
-          line_hl = "ReviewPraiseLine",
-        },
+        { id = "note", key = "n", name = "Note", icon = "📝",
+          description = "general feedback; you have leeway and may include suggested changes",
+          hl = "ReviewNote", hl_link = "DiagnosticInfo",
+          line_hl = "ReviewNoteLine", line_bg = "#0d1f28" },
+        { id = "issue", key = "i", name = "Issue", icon = "⚠️",
+          description = "definitive, must be addressed",
+          hl = "ReviewIssue", hl_link = "DiagnosticWarn",
+          line_hl = "ReviewIssueLine", line_bg = "#28250d" },
+        { id = "question", key = "q", name = "Question", icon = "❓",
+          description = "clarification request; answer inline, do not change code",
+          hl = "ReviewQuestion", hl_link = "DiagnosticHint",
+          line_hl = "ReviewQuestionLine", line_bg = "#15152a" },
       },
 
       codediff = {
         readonly = true,
+        wrap = nil,  -- true/false forces 'wrap' in the diff windows
       },
 
       branch = {
@@ -166,10 +159,11 @@ are optional. The example shows the default values.
       },
 
       export = {
-        -- header: four lines, see |review-config-export|
+        header = nil,  -- nil: the comment type legend, see |review-export|
         clipboard = true,
         on_export = nil,
         clear_on_close = true,
+        file = nil,  -- or $REVIEW_EXPORT_FILE: written when the review ends
       },
 
       keymaps = { ... },  -- see |review-keymaps|
@@ -237,9 +231,8 @@ These keymaps are active when `codediff.readonly = false`:
     Key           Description ~
     `<localleader>cc`    Add a comment (pick the type)       |n, x|
     `<localleader>cn`    Add a note                          |n, x|
-    `<localleader>cs`    Add a suggestion                    |n, x|
     `<localleader>ci`    Add an issue                        |n, x|
-    `<localleader>cp`    Add a praise                        |n, x|
+    `<localleader>cq`    Add a question                      |n, x|
     `<localleader>cf`    Add a comment on the whole file     |n|
     `<localleader>cr`    Mark the file as reviewed           |n|
     `<localleader>ce`    Edit the comment at the cursor      |n|
@@ -289,9 +282,8 @@ them, set them after you call setup() or in a |ColorScheme| autocommand.
 
   Group                   Default link      Usage ~
   `ReviewNote`              DiagnosticInfo    Note virtual text and sign
-  `ReviewSuggestion`        DiagnosticHint    Suggestion virtual text and sign
   `ReviewIssue`             DiagnosticWarn    Issue virtual text and sign
-  `ReviewPraise`            DiagnosticOk      Praise virtual text and sign
+  `ReviewQuestion`          DiagnosticHint    Question virtual text and sign
   `ReviewSign`              Comment           Sign column marker (●)
   `ReviewVirtText`          Comment           General virtual text
   `ReviewPickerHash`        Identifier        Commit hash in the picker
@@ -301,25 +293,25 @@ them, set them after you call setup() or in a |ColorScheme| autocommand.
 
   Group                   Default bg        Usage ~
   `ReviewNoteLine`          #0d1f28           Note line background
-  `ReviewSuggestionLine`    #152015           Suggestion line background
   `ReviewIssueLine`         #28250d           Issue line background
-  `ReviewPraiseLine`        #15152a           Praise line background
+  `ReviewQuestionLine`      #15152a           Question line background
 
 ==============================================================================
 7. EXPORT FORMAT                                              *review-export*
 
 The export is a header and a numbered markdown list: >markdown
-    I reviewed your code and have the following comments. Please address them.
-
-    Comment types: ISSUE (problems to fix), SUGGESTION (improvements), NOTE (observations), PRAISE (positive feedback)
+    Comment types: NOTE (general feedback; ...), ISSUE (definitive, must be addressed), QUESTION (...)
     Lines prefixed with ~ refer to the old (left) side of the diff.
 
-    1. **[ISSUE]** `src/api.ts:23` - This endpoint does not handle errors
-    2. **[SUGGESTION]** `src/utils.ts:~10-~14` - The old code was cleaner
-    3. **[NOTE]** `README.md` - Add a section about the export
+    1. **[ISSUE]** `src/api.ts:23` `return fetch(url)` - This endpoint does not handle errors
+    2. **[NOTE]** `src/utils.ts:~10-~11` - The old code was cleaner
+       > const a = 1
+       > const b = 2
+    3. **[QUESTION]** `README.md` - Should this mention the export?
 <
 A `~` before a line number means the old (left) side of the diff. Ranges use
-`start-end`. A comment with no line number is about the whole file. To change
+`start-end`, with the commented lines quoted below; a one-line comment shows
+its source line inline. A comment with no line number is about the whole file. To change
 the header, use `export.header` (|review-config-export|). To see the export
 without a copy to the clipboard, use `:Review preview`.
 

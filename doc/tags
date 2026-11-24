@@ -11,6 +11,7 @@
 :Review-preview	review.txt	/*:Review-preview*
 :Review-sidekick	review.txt	/*:Review-sidekick*
 :Review-toggle	review.txt	/*:Review-toggle*
+:Review-workspace	review.txt	/*:Review-workspace*
 review-commands	review.txt	/*review-commands*
 review-config	review.txt	/*review-config*
 review-config-branch	review.txt	/*review-config-branch*

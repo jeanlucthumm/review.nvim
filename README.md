@@ -4,13 +4,24 @@ Code review annotations for codediff.nvim, optimized for AI feedback loops.
 
 Inspired by [tuicr](https://github.com/agavra/tuicr).
 
+## What this fork adds
+
+Changes over [upstream](https://github.com/georgeguimaraes/review.nvim):
+
+- **Source context in exports**: each comment carries the line(s) it was made on, so the LLM anchors on real code instead of bare line numbers.
+- **LLM-oriented comment types**: `NOTE` (general feedback, LLM has leeway), `ISSUE` (must address), `QUESTION` (answer inline, no code changes), instead of note/suggestion/issue/praise. Types are an ordered `comment_types` list, and the export header is derived from it.
+- **Workspace mode** (`:Review workspace [rev]`): diffs a base revision against the working tree, so the right side is the real file on disk and LSP works there. The base falls back to `$REVIEW_BASE`. Built for reviewing agent work checked out in jj workspaces.
+- **File export for agent handoff**: with `export.file` or `$REVIEW_EXPORT_FILE` set, the review writes its export there once it ends (on `q` or on exit), with a "no comments" marker for clean reviews, then archives and clears the comments.
+- **Close quits single-purpose editors**: `q` exits nvim when `$REVIEW_QUIT_ON_CLOSE=1` (launchers that wait on the editor's exit) or when the review is the last tab.
+- **Wrap**: `codediff.wrap = true` forces wrapping in the diff windows; long comments word-wrap in the input box and in the rendered boxes.
+
 ![review.nvim demo: adding typed comments in a codediff view and exporting them as markdown](assets/demo.gif)
 
 *A review of a diff: an issue, a praise and a range suggestion. Then `C` exports them as markdown.*
 
 ## Features
 
-- Comments on lines of a diff, with four types: Note, Suggestion, Issue and Praise
+- Comments on lines of a diff, with three types: Note, Issue and Question
 - Comments on a range of lines
 - Signs, line highlights and boxes of virtual text for each comment
 - One comment store for each repository, kept across restarts
@@ -74,6 +85,7 @@ Some notes on this snippet:
 :Review commits REV1 REV2  " Review a revision range (no picker)
 :Review branch       " Pick a branch to review (and its base, with branch.pick_base)
 :Review branch TARGET [BASE]  " Review TARGET, such as origin/feature, against BASE (no picker)
+:Review workspace [REV]  " Review the working tree against REV (default $REVIEW_BASE), LSP on the right
 :Review note         " Add a note on the current line of any file (:'<,'>Review note for a range)
 :Review edit         " Edit the comment at the cursor
 :Review delete       " Delete the comment at the cursor
@@ -96,7 +108,7 @@ The base is `origin/HEAD`, `main` or `master`. To use a different base, set `bra
 
 `<Tab>` and `<S-Tab>` move between files. `f` shows or hides the file panel. `t` switches between the side-by-side layout and the inline layout. `<C-w>h` and `<C-w>l` move between the old (left) pane and the new (right) pane.
 
-To add a comment, press `i` on the line and pick a type from the menu: note, suggestion, issue or praise. The comment box is a markdown buffer, so your `FileType markdown` settings, such as spell check, apply there. The comment shows as a box below the line, with an icon in the sign column.
+To add a comment, press `i` on the line and pick a type from the menu: note, issue or question. The comment box is a markdown buffer, so your `FileType markdown` settings, such as spell check, apply there. The comment shows as a box below the line, with an icon in the sign column.
 
 For a comment on many lines, select the lines in visual mode and press `i`. For a comment on the whole file, press `F`. A comment on the left side shows only on the left side. A comment on the right side shows only on the right side.
 
@@ -169,7 +181,7 @@ The reviewed marks are in a second file next to the store. `q` and `:Review clea
 | Key | Action |
 |-----|--------|
 | `<localleader>cc` | Add a comment (pick the type from a menu) |
-| `<localleader>cn/cs/ci/cp` | Add a Note, Suggestion, Issue or Praise |
+| `<localleader>cn/ci/cq` | Add a Note, Issue or Question |
 | `<localleader>cf` | Add a comment on the whole file |
 | `<localleader>cr` | Mark the file as reviewed and go to the next unreviewed file (press again to remove the mark) |
 | `<localleader>cd` | Delete the comment |
@@ -191,10 +203,7 @@ To disable a keymap, set it to `false`.
 | Option | Default | Action |
 |--------|---------|--------|
 | `add_comment` | `<localleader>cc` | Add a comment, pick the type (edit mode) |
-| `add_note` | `<localleader>cn` | Add a note (edit mode) |
-| `add_suggestion` | `<localleader>cs` | Add a suggestion (edit mode) |
-| `add_issue` | `<localleader>ci` | Add an issue (edit mode) |
-| `add_praise` | `<localleader>cp` | Add a praise (edit mode) |
+| `<localleader>c` + type key | `cn`, `ci`, `cq` | Add a comment of that type (edit mode; keys come from `comment_types`) |
 | `add_file_comment` | `<localleader>cf` | Add a comment on the whole file (edit mode) |
 | `toggle_reviewed` | `<localleader>cr` | Mark the file as reviewed and go to the next unreviewed file, or remove the mark (edit mode) |
 | `delete_comment` | `<localleader>cd` | Delete the comment (edit mode) |
@@ -224,28 +233,29 @@ To disable a keymap, set it to `false`.
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `codediff.readonly` | `true` | Make the diff panes read-only and use the single-key mappings above |
+| `codediff.wrap` | `nil` | Force `wrap` on or off in the diff windows; `nil` keeps codediff's nowrap |
 | `branch.base` | `nil` | The base for `:Review branch`. With `nil`, use `origin/HEAD`, then `main` or `master` |
 | `branch.pick_base` | `false` | After you pick a target, open a second picker for its base |
-| `export.header` | The four-line header in [Export format](#export-format) | The text at the top of every export |
+| `export.header` | `nil`: the type legend in [Export format](#export-format) | The text at the top of every export |
 | `export.clipboard` | `true` | Copy the export to the `+` and `*` registers |
 | `export.on_export` | `nil` | `function(markdown, comments)` that runs on every export |
 | `export.clear_on_close` | `true` | `q` archives and clears the comments after the export |
+| `export.file` | `nil` (`$REVIEW_EXPORT_FILE`) | Also write the export to this file when the review ends |
 
 An example setup:
 
 ```lua
 require("review").setup({
+  -- A list replaces the default types; each entry needs every field
   comment_types = {
-    note = { key = "n", name = "Note", icon = "📝", hl = "ReviewNote" },
-    suggestion = { key = "s", name = "Suggestion", icon = "💡", hl = "ReviewSuggestion" },
-    issue = { key = "i", name = "Issue", icon = "⚠️", hl = "ReviewIssue" },
-    praise = { key = "p", name = "Praise", icon = "✨", hl = "ReviewPraise" },
+    {
+      id = "issue", key = "i", name = "Issue", icon = "⚠️",
+      description = "definitive, must be addressed",
+      hl = "ReviewIssue", hl_link = "DiagnosticWarn",
+      line_hl = "ReviewIssueLine", line_bg = "#28250d",
+    },
   },
   keymaps = {
-    add_note = "<localleader>cn",
-    add_suggestion = "<localleader>cs",
-    add_issue = "<localleader>ci",
-    add_praise = "<localleader>cp",
     delete_comment = "<localleader>cd",
     edit_comment = "<localleader>ce",
     next_comment = "]n",
@@ -273,19 +283,19 @@ require("review").setup({
 The export is markdown for an AI chat:
 
 ```markdown
-I reviewed your code and have the following comments. Please address them.
-
-Comment types: ISSUE (problems to fix), SUGGESTION (improvements), NOTE (observations), PRAISE (positive feedback)
+Comment types: NOTE (general feedback; you have leeway and may include suggested changes), ISSUE (definitive, must be addressed), QUESTION (clarification request; answer inline, do not change code)
 Lines prefixed with ~ refer to the old (left) side of the diff.
 
-1. **[ISSUE]** `src/components/Button.tsx:23` - Wrapping onClick creates a new function every render
-2. **[SUGGESTION]** `src/utils/api.ts:~45` - The old implementation was cleaner
-3. **[PRAISE]** `src/hooks/useAuth.ts:12-18` - Clean implementation of the auth flow
+1. **[ISSUE]** `src/components/Button.tsx:23` `<button onClick={() => save()}>` - Wrapping onClick creates a new function every render
+2. **[NOTE]** `src/utils/api.ts:~45` `return cache.get(key)` - The old implementation was cleaner
+3. **[QUESTION]** `src/hooks/useAuth.ts:12-13` - Why refresh here?
+   > const token = await refresh()
+   > setToken(token)
 ```
 
-A `~` before a line number (for example, `:~45`) refers to the old (left) side of the diff. Range comments use `start-end`.
+A `~` before a line number (for example, `:~45`) refers to the old (left) side of the diff. Range comments use `start-end`. A one-line comment shows its source line inline; a range quotes its lines below.
 
-`export.header` replaces the first four lines. A custom header also replaces the comment types and the `~` legend. If the reader needs them, explain them in your header.
+`export.header` replaces the first two lines. A custom header also replaces the comment types and the `~` legend. If the reader needs them, explain them in your header.
 
 ## Export targets
 
