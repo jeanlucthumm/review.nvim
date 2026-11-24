@@ -7,13 +7,57 @@ local normalize_path = require("review.utils").normalize_path
 local ns_id = vim.api.nvim_create_namespace("review")
 local ns_padding = vim.api.nvim_create_namespace("review_padding")
 
+---Word-wrap one paragraph to max_width display cells; a single word longer
+---than that overflows rather than being split.
+---@param text string
+---@param max_width number
+---@return string[]
+local function wrap_paragraph(text, max_width)
+  local lines = {}
+  local current = ""
+  for word in text:gmatch("%S+") do
+    if current == "" then
+      current = word
+    elseif vim.fn.strdisplaywidth(current .. " " .. word) <= max_width then
+      current = current .. " " .. word
+    else
+      table.insert(lines, current)
+      current = word
+    end
+  end
+  table.insert(lines, current)
+  return lines
+end
+
+---@param bufnr number
+---@return number[] windows showing the buffer
+local function wins_for_buf(bufnr)
+  return vim.tbl_filter(function(win)
+    return vim.api.nvim_win_get_buf(win) == bufnr
+  end, vim.api.nvim_list_wins())
+end
+
+---Width available inside the comment box, from the first window showing the buffer.
+---@param bufnr number
+---@return number
+local function content_wrap_width(bufnr)
+  local win = wins_for_buf(bufnr)[1]
+  local win_width = win and vim.api.nvim_win_get_width(win) or 80
+  -- "│ " and " │" take 4 cells; keep ~4 more for the sign/number columns
+  return math.max(20, win_width - 8)
+end
+
 ---@param text string
 ---@param type_name string
 ---@param hl string
+---@param max_width number wrap width inside the box borders
 ---@return table[] virt_lines
-local function build_comment_box(text, type_name, hl)
+local function build_comment_box(text, type_name, hl, max_width)
   local virt_lines = {}
-  local text_lines = vim.split(text, "\n")
+  local text_lines = {}
+  for _, paragraph in ipairs(vim.split(text, "\n")) do
+    vim.list_extend(text_lines, wrap_paragraph(paragraph, max_width))
+  end
 
   local max_text_width = 0
   for _, text_line in ipairs(text_lines) do
@@ -79,7 +123,7 @@ function M.render_for_buffer(bufnr, side, file_override)
     local hl = type_info and type_info.hl or "ReviewSign"
     local line_hl = type_info and type_info.line_hl
     local name = type_info and type_info.name or comment.type
-    local virt_lines = build_comment_box(comment.text, name, hl)
+    local virt_lines = build_comment_box(comment.text, name, hl, content_wrap_width(bufnr))
 
     if comment.line == 0 then
       pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, 0, 0, {
@@ -90,16 +134,14 @@ function M.render_for_buffer(bufnr, side, file_override)
       })
       -- Scroll windows to reveal virt_lines above row 0
       local virt_line_count = #virt_lines
-      for _, win in ipairs(vim.api.nvim_list_wins()) do
-        if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == bufnr then
-          vim.api.nvim_win_call(win, function()
-            local view = vim.fn.winsaveview()
-            if view.topline <= 1 then
-              view.topfill = virt_line_count
-              vim.fn.winrestview(view)
-            end
-          end)
-        end
+      for _, win in ipairs(wins_for_buf(bufnr)) do
+        vim.api.nvim_win_call(win, function()
+          local view = vim.fn.winsaveview()
+          if view.topline <= 1 then
+            view.topfill = virt_line_count
+            vim.fn.winrestview(view)
+          end
+        end)
       end
     else
       local line_start = comment.line - 1
@@ -293,5 +335,10 @@ function M.clear_all()
     end
   end
 end
+
+M._test = {
+  wrap_paragraph = wrap_paragraph,
+  build_comment_box = build_comment_box,
+}
 
 return M
