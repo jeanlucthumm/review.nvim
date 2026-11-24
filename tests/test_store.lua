@@ -217,4 +217,16 @@ T["archive_and_clear"]["empties the store and archives what was there"] = functi
   vim.fn.delete(storage.archive_dir(), "rf")
 end
 
+T["source_lines"] = MiniTest.new_set()
+
+T["source_lines"]["stored when provided"] = function()
+  local c = store.add("file.lua", 10, "note", "text", nil, "new", { "local x = 1" })
+  eq(c.source_lines, { "local x = 1" })
+end
+
+T["source_lines"]["nil when omitted or empty"] = function()
+  eq(store.add("file.lua", 10, "note", "text").source_lines, nil)
+  eq(store.add("file.lua", 11, "note", "text", nil, "new", {}).source_lines, nil)
+end
+
 return T

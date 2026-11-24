@@ -139,4 +139,24 @@ T["deliver"]["survives a failing on_export"] = function()
   eq(vim.fn.getreg("+"), markdown)
 end
 
+T["source lines"] = MiniTest.new_set()
+
+T["source lines"]["inlines a single source line"] = function()
+  store.add("src/main.lua", 10, "issue", "Fix this", nil, "new", { "local x = 1" })
+  expect_match(export.generate_markdown(), "`src/main.lua:10` `local x = 1` - Fix this", true)
+end
+
+T["source lines"]["renders multi-line source as a blockquote"] = function()
+  store.add("src/main.lua", 10, "issue", "Fix this", 12, "new", { "line one", "line two" })
+  local md = export.generate_markdown()
+  expect_match(md, "`src/main.lua:10-12` - Fix this\n   > line one\n   > line two", true)
+end
+
+T["source lines"]["omitted when the comment has none"] = function()
+  store.add("src/main.lua", 10, "issue", "No source")
+  local md = export.generate_markdown()
+  expect_match(md, "`src/main.lua:10` - No source", true)
+  expect_no_match(md, "   > ", true)
+end
+
 return T

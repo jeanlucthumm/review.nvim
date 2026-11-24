@@ -49,4 +49,19 @@ function M.relative_to_root(path)
   return nil
 end
 
+---Format a comment's location as shown in the picker and the export:
+---"path" for file-level, "path:N" / "path:N-M" on the new side, "path:~N" on the old side.
+---@param comment Comment
+---@return string
+function M.format_location(comment)
+  if comment.line == 0 then
+    return comment.file
+  end
+  local prefix = (comment.side or "new") == "old" and "~" or ""
+  if comment.line_end and comment.line_end ~= comment.line then
+    return string.format("%s:%s%d-%s%d", comment.file, prefix, comment.line, prefix, comment.line_end)
+  end
+  return string.format("%s:%s%d", comment.file, prefix, comment.line)
+end
+
 return M

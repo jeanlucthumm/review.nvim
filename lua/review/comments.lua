@@ -19,6 +19,15 @@ local function refresh_marks(bufnr)
   end)
 end
 
+---Lines under the comment in the current buffer, kept so the export shows
+---what was commented on even after the code moves.
+---@param start_line number 1-indexed inclusive
+---@param end_line number 1-indexed inclusive
+---@return string[]
+local function capture_source(start_line, end_line)
+  return vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+end
+
 ---@param initial_type? "note"|"suggestion"|"issue"|"praise"
 function M.add_at_cursor(initial_type)
   local target_buf = vim.api.nvim_get_current_buf()
@@ -34,9 +43,11 @@ function M.add_at_cursor(initial_type)
     return
   end
 
+  local source_lines = capture_source(line, line)
+
   popup.open(initial_type or "note", nil, function(comment_type, text)
     if comment_type and text then
-      store.add(file, line, comment_type, text, nil, side)
+      store.add(file, line, comment_type, text, nil, side, source_lines)
       refresh_marks(target_buf)
       notify(string.format("Added %s comment", comment_type), vim.log.levels.INFO)
     end
@@ -102,9 +113,11 @@ function M.add_for_range(initial_type, start_line, end_line)
     return
   end
 
+  local source_lines = capture_source(start_line, end_line)
+
   popup.open(initial_type or "note", nil, function(comment_type, text)
     if comment_type and text then
-      store.add(file, start_line, comment_type, text, end_line, side)
+      store.add(file, start_line, comment_type, text, end_line, side, source_lines)
       refresh_marks(target_buf)
       notify(string.format("Added %s comment", comment_type), vim.log.levels.INFO)
     end
@@ -217,22 +230,7 @@ function M.list()
     local type_info = config.comment_types[comment.type]
     local icon = type_info and type_info.icon or "●"
     local name = type_info and type_info.name or comment.type
-    local location
-    local is_old = (comment.side or "new") == "old"
-    if comment.line == 0 then
-      location = comment.file
-    elseif is_old then
-      if comment.line_end and comment.line_end ~= comment.line then
-        location = string.format("%s:~%d-~%d", comment.file, comment.line, comment.line_end)
-      else
-        location = string.format("%s:~%d", comment.file, comment.line)
-      end
-    elseif comment.line_end and comment.line_end ~= comment.line then
-      location = string.format("%s:%d-%d", comment.file, comment.line, comment.line_end)
-    else
-      location = string.format("%s:%d", comment.file, comment.line)
-    end
-    local display = string.format("%s %s [%s] %s", icon, location, name, comment.text)
+    local display = string.format("%s %s [%s] %s", icon, utils.format_location(comment), name, comment.text)
     table.insert(items, { display = display, comment = comment })
   end
 

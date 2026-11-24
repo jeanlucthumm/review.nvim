@@ -95,7 +95,7 @@ T["notes appear in the review and in the export"] = function()
   E.wait_for([[#vim.api.nvim_buf_get_extmarks(0, vim.api.nvim_create_namespace("review"), 0, -1, {}) >= 1]], "note on the diff pane")
   child.type_keys("C")
   E.wait_for([[vim.bo.filetype == "markdown"]], "preview")
-  expect_match(child.fn.getreg("+"), "%*%*%[NOTE%]%*%* `api%.lua:4` %- seen from the diff too")
+  expect_match(child.fn.getreg("+"), "%*%*%[NOTE%]%*%* `api%.lua:4` `.-` %- seen from the diff too")
 end
 
 T["edits and deletes the note at the cursor"] = function()
