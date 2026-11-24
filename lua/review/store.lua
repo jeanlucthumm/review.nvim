@@ -8,7 +8,7 @@ local storage = require("review.storage")
 ---@field line number
 ---@field line_end? number
 ---@field side? "old"|"new"
----@field type "note"|"suggestion"|"issue"|"praise"
+---@field type string CommentType id
 ---@field text string
 ---@field source_lines? string[] commented source line(s), captured when the comment was made
 ---@field created_at number
@@ -55,7 +55,7 @@ end
 
 ---@param file string
 ---@param line number
----@param type "note"|"suggestion"|"issue"|"praise"
+---@param type string CommentType id
 ---@param text string
 ---@param line_end? number
 ---@param side? "old"|"new"
@@ -163,7 +163,7 @@ end
 
 ---@param id string
 ---@param text string
----@param new_type? "note"|"suggestion"|"issue"|"praise"
+---@param new_type? string CommentType id
 ---@return boolean
 function M.update(id, text, new_type)
   for _, comments in pairs(M.comments) do

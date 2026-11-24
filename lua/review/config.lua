@@ -1,31 +1,31 @@
 local M = {}
 
 ---@class ReviewConfig
----@field comment_types table<string, CommentType>
+---@field comment_types CommentType[] ordered; a configured list replaces the default one
 ---@field keymaps ReviewKeymaps
 ---@field branch { base: string|nil, pick_base: boolean }
 ---@field export ReviewExportConfig
 ---@field codediff ReviewCodediffConfig
 
 ---@class ReviewExportConfig
----@field header string header block prepended to exported markdown
+---@field header string|nil header block prepended to exported markdown; nil derives it from comment_types
 ---@field clipboard boolean copy the markdown to the + and * registers
 ---@field on_export nil|fun(markdown: string, comments: Comment[]) called on every export
 ---@field clear_on_close boolean archive and clear comments when the review closes (q)
 
 ---@class CommentType
----@field key string
----@field name string
+---@field id string stored on comments
+---@field key string single-char keymap suffix (`<localleader>c<key>`)
+---@field name string display name
 ---@field icon string
----@field hl string
----@field line_hl string
+---@field description string one-line purpose, rendered in the export header
+---@field hl string highlight group for virt text / sign
+---@field hl_link string group that `hl` links to by default
+---@field line_hl string highlight group for the line background
+---@field line_bg string default line background color
 
 ---@class ReviewKeymaps
 ---@field add_comment string|false
----@field add_note string|false
----@field add_suggestion string|false
----@field add_issue string|false
----@field add_praise string|false
 ---@field delete_comment string|false
 ---@field edit_comment string|false
 ---@field next_comment string|false
@@ -57,18 +57,29 @@ local M = {}
 ---@type ReviewConfig
 M.defaults = {
   comment_types = {
-    note = { key = "n", name = "Note", icon = "📝", hl = "ReviewNote", line_hl = "ReviewNoteLine" },
-    suggestion = { key = "s", name = "Suggestion", icon = "💡", hl = "ReviewSuggestion", line_hl = "ReviewSuggestionLine" },
-    issue = { key = "i", name = "Issue", icon = "⚠️", hl = "ReviewIssue", line_hl = "ReviewIssueLine" },
-    praise = { key = "p", name = "Praise", icon = "✨", hl = "ReviewPraise", line_hl = "ReviewPraiseLine" },
+    {
+      id = "note", key = "n", name = "Note", icon = "📝",
+      description = "general feedback; you have leeway and may include suggested changes",
+      hl = "ReviewNote", hl_link = "DiagnosticInfo",
+      line_hl = "ReviewNoteLine", line_bg = "#0d1f28",
+    },
+    {
+      id = "issue", key = "i", name = "Issue", icon = "⚠️",
+      description = "definitive, must be addressed",
+      hl = "ReviewIssue", hl_link = "DiagnosticWarn",
+      line_hl = "ReviewIssueLine", line_bg = "#28250d",
+    },
+    {
+      id = "question", key = "q", name = "Question", icon = "❓",
+      description = "clarification request; answer inline, do not change code",
+      hl = "ReviewQuestion", hl_link = "DiagnosticHint",
+      line_hl = "ReviewQuestionLine", line_bg = "#15152a",
+    },
   },
   keymaps = {
-    -- Edit mode (leader-based)
+    -- Edit mode (leader-based). Per-type add keymaps are derived from
+    -- `comment_types[i].key` as `<localleader>c<key>`.
     add_comment = "<localleader>cc",
-    add_note = "<localleader>cn",
-    add_suggestion = "<localleader>cs",
-    add_issue = "<localleader>ci",
-    add_praise = "<localleader>cp",
     add_file_comment = "<localleader>cf",
     toggle_reviewed = "<localleader>cr",
     delete_comment = "<localleader>cd",
@@ -104,12 +115,7 @@ M.defaults = {
     pick_base = false, -- open a second branch picker for the base
   },
   export = {
-    header = table.concat({
-      "I reviewed your code and have the following comments. Please address them.",
-      "",
-      "Comment types: ISSUE (problems to fix), SUGGESTION (improvements), NOTE (observations), PRAISE (positive feedback)",
-      "Lines prefixed with ~ refer to the old (left) side of the diff.",
-    }, "\n"),
+    header = nil, -- nil lists comment_types with their descriptions
     clipboard = true, -- copy exported markdown to the clipboard
     on_export = nil, -- function(markdown, comments) for tmux, an agent, a file...
     clear_on_close = true, -- q exports, archives and clears; C only exports
@@ -127,11 +133,32 @@ function M.setup(opts)
   -- deepcopy: tbl_deep_extend assigns nested tables by reference when only
   -- one side has them, so edits to config.get() would leak into the defaults
   M.config = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
+  -- Lists merge by index under tbl_deep_extend; a configured type list replaces the default
+  if opts and opts.comment_types then
+    M.config.comment_types = vim.deepcopy(opts.comment_types)
+  end
 end
 
 ---@return ReviewConfig
 function M.get()
   return M.config
+end
+
+---@param id string
+---@return CommentType|nil
+function M.get_type(id)
+  return M.config.comment_types[M.get_type_index(id)]
+end
+
+---@param id string
+---@return number|nil position in comment_types
+function M.get_type_index(id)
+  for i, t in ipairs(M.config.comment_types) do
+    if t.id == id then
+      return i
+    end
+  end
+  return nil
 end
 
 return M

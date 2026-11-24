@@ -8,6 +8,16 @@ local function notify(msg, level)
   vim.notify(msg, level, { title = "review.nvim" })
 end
 
+---Header listing each configured comment type with its description.
+---@return string
+function M.default_header()
+  local types = {}
+  for _, t in ipairs(config.get().comment_types) do
+    table.insert(types, string.format("%s (%s)", string.upper(t.id), t.description))
+  end
+  return "Comment types: " .. table.concat(types, ", ") .. "\nLines prefixed with ~ refer to the old (left) side of the diff."
+end
+
 ---@return string
 function M.generate_markdown()
   local all_comments = store.get_all()
@@ -18,8 +28,7 @@ function M.generate_markdown()
 
   local lines = {}
 
-  -- Header
-  table.insert(lines, config.get().export.header)
+  table.insert(lines, config.get().export.header or M.default_header())
   table.insert(lines, "")
 
   -- Numbered list of comments

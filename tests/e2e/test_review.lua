@@ -140,7 +140,7 @@ end
 
 
 -- Add a comment on `line` through the popup: `tabs` cycles the type
--- (note -> suggestion -> issue -> praise), `<C-s>` submits.
+-- (note -> issue -> question), `<C-s>` submits.
 local function add_comment(line, tabs, text)
   local before = count()
   child.type_keys(line .. "G", "i")
@@ -186,13 +186,13 @@ T["adds comments through the popup"] = function()
   child.type_keys("5G", "i")
   wait_for(IN_POPUP, "comment popup")
   expect.reference_screenshot(screenshot(), nil, SCREENSHOT_OPTS)
-  child.type_keys("<Tab><Tab>", "error() here swallows the status code, return it too", "<C-s>")
+  child.type_keys("<Tab>", "error() here swallows the status code, return it too", "<C-s>")
   wait_for([[require("review.store").count() == 1]], "first comment stored")
   wait_for(BACK_IN_DIFF, "focus back in diff")
 
-  add_comment(12, 3, "nice, pcall around decode is the right call")
+  add_comment(12, 2, "nice, pcall around decode is the right call")
 
-  eq(comment_summary(), "issue@api.lua:5,praise@api.lua:12")
+  eq(comment_summary(), "issue@api.lua:5,question@api.lua:12")
   wait_for([[#vim.api.nvim_buf_get_extmarks(0, vim.api.nvim_create_namespace("review"), 0, -1, {}) >= 2]], "marks rendered")
   expect.reference_screenshot(screenshot(), nil, SCREENSHOT_OPTS)
 end
@@ -230,8 +230,8 @@ end
 
 T["exports to clipboard and closes"] = function()
   open_review()
-  add_comment(5, 2, "error() here swallows the status code, return it too")
-  add_comment(12, 3, "nice, pcall around decode is the right call")
+  add_comment(5, 1, "error() here swallows the status code, return it too")
+  add_comment(12, 2, "nice, pcall around decode is the right call")
 
   -- on_export runs for C and again for q
   child.lua([[
@@ -246,8 +246,8 @@ T["exports to clipboard and closes"] = function()
   expect.reference_screenshot(screenshot(), nil, SCREENSHOT_OPTS)
 
   local exported = child.fn.getreg("+")
-  expect_match(exported, "1%. %*%*%[ISSUE%]%*%* `api%.lua:5` %- error%(%) here swallows")
-  expect_match(exported, "2%. %*%*%[PRAISE%]%*%* `api%.lua:12` %- nice, pcall")
+  expect_match(exported, "1%. %*%*%[ISSUE%]%*%* `api%.lua:5` `.-` %- error%(%) here swallows")
+  expect_match(exported, "2%. %*%*%[QUESTION%]%*%* `api%.lua:12` `.-` %- nice, pcall")
 
   child.type_keys("q") -- close the preview split
   wait_for(READY, "focus back on modified pane")

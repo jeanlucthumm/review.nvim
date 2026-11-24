@@ -27,9 +27,7 @@ T["generate_markdown"]["includes file and comment in output"] = function()
 
   local md = export.generate_markdown()
   local default_header = table.concat({
-    "I reviewed your code and have the following comments. Please address them.",
-    "",
-    "Comment types: ISSUE (problems to fix), SUGGESTION (improvements), NOTE (observations), PRAISE (positive feedback)",
+    "Comment types: NOTE (general feedback; you have leeway and may include suggested changes), ISSUE (definitive, must be addressed), QUESTION (clarification request; answer inline, do not change code)",
     "Lines prefixed with ~ refer to the old (left) side of the diff.",
   }, "\n")
   eq(md:sub(1, #default_header), default_header)
@@ -157,6 +155,12 @@ T["source lines"]["omitted when the comment has none"] = function()
   local md = export.generate_markdown()
   expect_match(md, "`src/main.lua:10` - No source", true)
   expect_no_match(md, "   > ", true)
+end
+
+T["generate_markdown"]["header follows the configured comment types"] = function()
+  config.setup({ comment_types = { { id = "nit", key = "n", name = "Nit", icon = "", description = "optional polish" } } })
+  store.add("a.lua", 1, "nit", "rename")
+  expect_match(export.generate_markdown(), "^Comment types: NIT %(optional polish%)\n")
 end
 
 return T

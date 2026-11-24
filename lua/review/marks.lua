@@ -73,10 +73,8 @@ function M.render_for_buffer(bufnr, side, file_override)
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   tracked[bufnr] = {}
 
-  local cfg = config.get()
-
   for _, comment in ipairs(comments) do
-    local type_info = cfg.comment_types[comment.type]
+    local type_info = config.get_type(comment.type)
     local icon = type_info and type_info.icon or "●"
     local hl = type_info and type_info.hl or "ReviewSign"
     local line_hl = type_info and type_info.line_hl

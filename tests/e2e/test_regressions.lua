@@ -113,7 +113,7 @@ T["#30 comment popup keeps its own keymaps"] = function()
   eq(child.lua_get(REVIEW_MAPS), "")
   child.type_keys("<Tab>", "still works", "<C-s>")
   wait_for([[require("review.store").count() == 1]], "comment stored")
-  eq(child.lua_get([[require("review.store").get_all()[1].type]]), "suggestion")
+  eq(child.lua_get([[require("review.store").get_all()[1].type]]), "issue")
 end
 
 T["#30 review does not fire FileType on the diff buffers it highlights"] = function()

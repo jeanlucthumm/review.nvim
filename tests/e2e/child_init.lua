@@ -29,10 +29,7 @@ vim.g.clipboard = {
 }
 
 require("codediff").setup({})
-require("review").setup({
-  comment_types = {
-    -- The default "⚠️" carries U+FE0F, which Neovim draws as 1 or 2 cells
-    -- depending on redraw timing and shifts every screenshot row after it.
-    issue = { icon = "⚠" },
-  },
-})
+require("review").setup({})
+-- The default "⚠️" carries U+FE0F, which Neovim draws as 1 or 2 cells
+-- depending on redraw timing and shifts every screenshot row after it.
+require("review.config").get_type("issue").icon = "⚠"

@@ -2,7 +2,7 @@ local M = {}
 
 local config = require("review.config")
 
----@param initial_type? "note"|"suggestion"|"issue"|"praise"
+---@param initial_type? string CommentType id
 ---@param initial_text? string
 ---@param callback fun(comment_type: string|nil, text: string|nil)
 function M.open(initial_type, initial_text, callback)
@@ -28,21 +28,12 @@ function M.open(initial_type, initial_text, callback)
   end
 
   local cfg = config.get()
-  local type_keys = { "note", "suggestion", "issue", "praise" }
-  local current_type_idx = 1
+  local types = cfg.comment_types
+  local current_type_idx = (initial_type and config.get_type_index(initial_type)) or 1
 
   local submit_key = cfg.keymaps.popup_submit
   local submit_hint = submit_key and string.format(" (%s: submit)", submit_key:gsub("^<(.+)>$", "%1")) or ""
 
-  -- Find initial type index
-  if initial_type then
-    for i, key in ipairs(type_keys) do
-      if key == initial_type then
-        current_type_idx = i
-        break
-      end
-    end
-  end
 
   -- Type selector popup (top)
   local type_popup = Popup({
@@ -92,14 +83,11 @@ function M.open(initial_type, initial_text, callback)
 
   local function render_types()
     local parts = {}
-    for i, key in ipairs(type_keys) do
-      local info = cfg.comment_types[key]
-      local icon = info and info.icon or ""
-      local name = info and info.name or key
+    for i, t in ipairs(types) do
       if i == current_type_idx then
-        table.insert(parts, string.format("[%s %s]", icon, name))
+        table.insert(parts, string.format("[%s %s]", t.icon, t.name))
       else
-        table.insert(parts, string.format(" %s %s ", icon, name))
+        table.insert(parts, string.format(" %s %s ", t.icon, t.name))
       end
     end
     local line = table.concat(parts, " ")
@@ -108,7 +96,7 @@ function M.open(initial_type, initial_text, callback)
   end
 
   local function cycle_type()
-    current_type_idx = current_type_idx % #type_keys + 1
+    current_type_idx = current_type_idx % #types + 1
     vim.api.nvim_set_option_value("modifiable", true, { buf = type_popup.bufnr })
     render_types()
   end
@@ -125,7 +113,7 @@ function M.open(initial_type, initial_text, callback)
     local text = get_text()
     layout:unmount()
     if text and text ~= "" then
-      callback(type_keys[current_type_idx], text)
+      callback(types[current_type_idx].id, text)
     else
       callback(nil, nil)
     end
