@@ -158,4 +158,18 @@ T["#40 popup title shows the configured submit key"] = function()
   expect_no_match(screen, "C-s: submit", true)
 end
 
+T["codediff.wrap survives codediff's nowrap on window switches"] = function()
+  child.lua([[require("review.config").get().codediff.wrap = true]])
+  open_review()
+  local BOTH_WRAP = [[(function()
+    local o, m = require("codediff.ui.lifecycle").get_windows(vim.api.nvim_get_current_tabpage())
+    return vim.wo[o].wrap and vim.wo[m].wrap
+  end)()]]
+  wait_for(BOTH_WRAP, "wrap applied on open")
+  child.type_keys("<C-w>h")
+  child.type_keys("<C-w>l")
+  vim.uv.sleep(200) -- let codediff's WinEnter/BufEnter nowrap run
+  eq(child.lua_get(BOTH_WRAP), true)
+end
+
 return T

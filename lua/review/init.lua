@@ -12,6 +12,11 @@ local comments = require("review.comments")
 local initialized = false
 local augroup = nil
 
+-- Gate the export-file write: only after a review opened in this instance,
+-- and once per review (close writes it, then VimLeavePre must not overwrite).
+local had_session = false
+local export_written = false
+
 ---@param opts? ReviewConfig
 function M.setup(opts)
   if initialized then
@@ -78,6 +83,14 @@ function M.setup(opts)
       if #store.get_for_file(file) > 0 then
         require("review.marks").render_for_buffer(ev.buf, "new", file)
       end
+    end,
+  })
+
+  -- Safety net for the export file: the review may end with :qa instead of q
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = augroup,
+    callback = function()
+      M._write_export_file()
     end,
   })
 
@@ -160,6 +173,7 @@ local function open_codediff(opts)
 
   store.load()
   notify_other_branch_comments()
+  had_session, export_written = true, false
 
   vim.cmd({ cmd = "CodeDiff", args = opts.args })
 
@@ -292,6 +306,33 @@ function M.open()
   open_codediff_with_revisions(nil, nil)
 end
 
+---Review the working tree against a base revision: the agent-handoff flow.
+---Run inside a checkout of the PR commit (e.g. a jj workspace) so the modified
+---side is the live file on disk and LSP works there.
+---@param base? string revision to diff against; defaults to $REVIEW_BASE
+function M.open_workspace(base)
+  base = base or vim.env.REVIEW_BASE
+  if not base or base == "" then
+    vim.notify("No base revision: pass one (:Review workspace <rev>) or set $REVIEW_BASE", vim.log.levels.ERROR, { title = "review.nvim" })
+    return
+  end
+  open_codediff({ args = { base } })
+end
+
+---Write export.file (or $REVIEW_EXPORT_FILE) once per review. A written file
+---is a handoff, so the comments are archived and cleared: the next review of
+---this repo starts empty even when this one ended with :qa.
+function M._write_export_file()
+  local path = config.get().export.file or vim.env.REVIEW_EXPORT_FILE
+  if not had_session or export_written or not path or path == "" then
+    return
+  end
+  export_written = export.to_file(path)
+  if export_written then
+    store.archive_and_clear()
+  end
+end
+
 function M.open_commits(rev1, rev2)
   if rev1 then
     open_codediff_with_revisions(rev2 and rev1 or (rev1 .. "^"), rev2 or rev1)
@@ -308,9 +349,16 @@ end
 function M.close()
   local markdown, count = export.deliver()
   local message = markdown and export.delivered_message(count) or nil
+  M._write_export_file()
 
-  vim.cmd("tabclose")
-  hooks.on_session_closed()
+  -- Quit when this instance exists only for the review: the launcher says so
+  -- ($REVIEW_QUIT_ON_CLOSE=1, its process wait is the handoff) or the review
+  -- is the last tab, where tabclose would fail.
+  local quit = vim.env.REVIEW_QUIT_ON_CLOSE == "1" or #vim.api.nvim_list_tabpages() == 1
+  if not quit then
+    vim.cmd("tabclose")
+    hooks.on_session_closed()
+  end
 
   if config.get().export.clear_on_close ~= false then
     if markdown then
@@ -322,6 +370,10 @@ function M.close()
       storage.clear_reviewed()
       require("review.reviewed").reset()
     end
+  end
+  if quit then
+    vim.cmd("qall")
+    return
   end
   if message then
     vim.notify(message, vim.log.levels.INFO, { title = "review.nvim" })

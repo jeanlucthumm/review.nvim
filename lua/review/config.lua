@@ -12,6 +12,7 @@ local M = {}
 ---@field clipboard boolean copy the markdown to the + and * registers
 ---@field on_export nil|fun(markdown: string, comments: Comment[]) called on every export
 ---@field clear_on_close boolean archive and clear comments when the review closes (q)
+---@field file string|nil also write the export here when the review ends; falls back to $REVIEW_EXPORT_FILE
 
 ---@class CommentType
 ---@field id string stored on comments
@@ -53,6 +54,7 @@ local M = {}
 
 ---@class ReviewCodediffConfig
 ---@field readonly boolean
+---@field wrap boolean|nil override 'wrap' in the diff windows; nil keeps codediff's nowrap
 
 ---@type ReviewConfig
 M.defaults = {
@@ -119,6 +121,7 @@ M.defaults = {
     clipboard = true, -- copy exported markdown to the clipboard
     on_export = nil, -- function(markdown, comments) for tmux, an agent, a file...
     clear_on_close = true, -- q exports, archives and clears; C only exports
+    file = nil, -- path (or $REVIEW_EXPORT_FILE) that receives the export when the review ends
   },
   codediff = {
     readonly = true,

@@ -77,6 +77,24 @@ function M.deliver()
   return markdown, count
 end
 
+---Write the export to a file for whoever waits on the review (an agent).
+---Writes even with no comments, so the file appearing reliably means the
+---review finished.
+---@param path string
+---@return boolean success
+function M.to_file(path)
+  local markdown = store.count() == 0 and "No comments. Review finished with nothing to address."
+    or M.generate_markdown()
+  local file = io.open(path, "w")
+  if not file then
+    notify("Failed to write export file: " .. path, vim.log.levels.ERROR)
+    return false
+  end
+  file:write(markdown .. "\n")
+  file:close()
+  return true
+end
+
 ---@param count number
 ---@return string
 function M.delivered_message(count)

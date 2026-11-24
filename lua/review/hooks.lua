@@ -270,6 +270,23 @@ function M.get_paths()
     relativize_path(mod_path, lifecycle, current_tabpage)
 end
 
+---codediff sets nowrap on every render and again on BufEnter/WinEnter/FileType
+---in the diff windows, so the codediff.wrap override is reapplied after each.
+---@param lifecycle table
+---@param tabpage number
+local function apply_wrap_override(lifecycle, tabpage)
+  local wrap = config.get().codediff.wrap
+  local sess = lifecycle.get_session(tabpage)
+  if wrap == nil or not sess then
+    return
+  end
+  for _, win in ipairs({ sess.original_win, sess.modified_win }) do
+    if win and vim.api.nvim_win_is_valid(win) then
+      vim.wo[win].wrap = wrap
+    end
+  end
+end
+
 -- Called when codediff session is created
 function M.on_session_created(tabpage)
   current_tabpage = tabpage
@@ -292,6 +309,8 @@ function M.on_session_created(tabpage)
     make_readonly(mod_buf)
   end
 
+  apply_wrap_override(lifecycle, tabpage)
+
   -- Clear old autocmds
   if buf_augroup then
     pcall(vim.api.nvim_del_augroup_by_id, buf_augroup)
@@ -312,6 +331,16 @@ function M.on_session_created(tabpage)
         return
       end
       marks.refresh()
+    end,
+  })
+
+  -- Registered after codediff's own nowrap autocmd, so this one runs last
+  vim.api.nvim_create_autocmd({ "BufWinEnter", "BufEnter", "WinEnter", "FileType" }, {
+    group = buf_augroup,
+    callback = function()
+      if vim.api.nvim_get_current_tabpage() == current_tabpage then
+        apply_wrap_override(lifecycle, current_tabpage)
+      end
     end,
   })
 
@@ -378,6 +407,8 @@ function M.on_file_changed(tabpage)
     make_readonly(orig_buf)
     make_readonly(mod_buf)
   end
+
+  apply_wrap_override(lifecycle, tabpage)
 
   -- Re-render comments
   vim.defer_fn(function()
